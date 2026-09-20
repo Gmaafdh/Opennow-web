@@ -311,6 +311,10 @@ function parseResolution(resolution: string): { width: number; height: number } 
   return { width, height };
 }
 
+/** Normal-playback receiver jitter-buffer caps (see receiverLatencyTargets). */
+const NORMAL_VIDEO_JITTER_TARGET_MS = 50;
+const NORMAL_AUDIO_JITTER_TARGET_MS = 15;
+
 function toRtcIceServers(iceServers: IceServer[]): RTCIceServer[] {
   return iceServers.map((server) => ({
     urls: server.urls,
@@ -578,9 +582,16 @@ export class GfnWebRtcClient {
   private lastDecoderKeyframeRequestAtMs = 0;
   private negotiatedMaxBitrateKbps = 0;
   private currentBitrateCeilingKbps = 0;
+  /**
+   * Fixed receiver jitter-buffer targets for normal playback. "Adaptive"
+   * (null) lets libwebrtc grow the buffer to hundreds of milliseconds on
+   * lossy/high-RTT paths, which users perceive as massive input lag. NVIDIA's
+   * stream carries FEC+NACK, so a tight cap is safe; decoder-pressure mode
+   * temporarily lowers the video target further.
+   */
   private receiverLatencyTargets: Record<"video" | "audio", number | null> = {
-    video: null,
-    audio: null,
+    video: 50,
+    audio: 15,
   };
   private activeReceivers: Array<{ receiver: RTCRtpReceiver; kind: "audio" | "video" }> = [];
 
@@ -637,6 +648,7 @@ export class GfnWebRtcClient {
     lagReasonDetail: "Waiting for stream stats",
     gpuType: "",
     serverRegion: "",
+    networkPath: "unknown",
     decoderPressureActive: false,
     decoderRecoveryAttempts: 0,
     decoderRecoveryAction: "none",
@@ -983,12 +995,12 @@ export class GfnWebRtcClient {
     this.diagnostics.decoderPressureActive = active;
     this.receiverLatencyTargets.video = active
       ? GfnWebRtcClient.VIDEO_PRESSURE_JITTER_TARGET_MS
-      : null;
+      : NORMAL_VIDEO_JITTER_TARGET_MS;
     this.receiverLatencyTargets.audio = active
       ? GfnWebRtcClient.AUDIO_PRESSURE_JITTER_TARGET_MS
-      : null;
+      : NORMAL_AUDIO_JITTER_TARGET_MS;
     this.log(
-      `Decoder pressure mode ${active ? "enabled" : "cleared"}; receiver targets video=${this.receiverLatencyTargets.video ?? "adaptive"} audio=${this.receiverLatencyTargets.audio ?? "adaptive"}`,
+      `Decoder pressure mode ${active ? "enabled" : "cleared"}; receiver targets video=${this.receiverLatencyTargets.video ?? "adaptive"}ms audio=${this.receiverLatencyTargets.audio ?? "adaptive"}ms`,
     );
     this.applyReceiverLatencyTargets();
   }
@@ -1058,6 +1070,7 @@ export class GfnWebRtcClient {
       nativeRendererActive: false,
       connectedGamepads: 0,
       resolution: "",
+      networkPath: "unknown",
       codec: "",
       hardwareAcceleration: "Chromium GPU decode",
       colorCodec: "",
@@ -1443,6 +1456,7 @@ export class GfnWebRtcClient {
     const now = performance.now();
     let inboundVideo: Record<string, unknown> | null = null;
     let activePair: Record<string, unknown> | null = null;
+    const localCandidatesById = new Map<string, Record<string, unknown>>();
     const codecs = new Map<string, Record<string, unknown>>();
     let framesReceived = 0;
     let framesDecoded = 0;
@@ -1465,6 +1479,10 @@ export class GfnWebRtcClient {
         if (stats.state === "succeeded" && stats.nominated === true) {
           activePair = stats;
         }
+      }
+
+      if (entry.type === "local-candidate") {
+        localCandidatesById.set(String(stats.id ?? ""), stats);
       }
 
       // Collect codec information
@@ -1607,6 +1625,24 @@ export class GfnWebRtcClient {
     if (activePair?.currentRoundTripTime !== undefined) {
       const rtt = Number(activePair.currentRoundTripTime);
       this.diagnostics.rttMs = Math.round(rtt * 1000 * 10) / 10;
+    }
+
+    // Report whether the selected path is direct or going through a TURN relay
+    // (relay = extra latency; happens when local UDP is blocked and the session
+    // switched to relay mode).
+    if (activePair && typeof activePair.localCandidateId === "string") {
+      const localCandidate = localCandidatesById.get(activePair.localCandidateId);
+      const candidateType = localCandidate ? String(localCandidate.candidateType ?? "") : "";
+      const nextPath = candidateType === "relay" ? "relay" : candidateType ? "direct" : "unknown";
+      if (nextPath !== this.diagnostics.networkPath) {
+        this.diagnostics.networkPath = nextPath;
+        if (nextPath === "relay") {
+          this.log("Network path: TURN RELAY — traffic is detouring through a relay server; expect extra latency. Fix the local UDP block to go direct.");
+        } else if (nextPath === "direct") {
+          this.log("Network path: direct");
+        }
+        this.emitStats();
+      }
     }
 
     const reliableBufferedAmount = this.reliableInputChannel?.bufferedAmount ?? 0;

@@ -56,6 +56,8 @@ export interface StreamDiagnostics {
   // System info
   gpuType: string;
   serverRegion: string;
+  /** Selected ICE path: "relay" means TURN relaying (extra latency expected). */
+  networkPath: "direct" | "relay" | "unknown";
 
   // Decoder recovery status
   decoderPressureActive: boolean;

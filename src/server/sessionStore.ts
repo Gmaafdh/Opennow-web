@@ -4,6 +4,7 @@ import {
   createHash,
   randomBytes,
 } from "node:crypto";
+import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import type { IncomingMessage } from "node:http";
 import {
   brotliCompressSync,
@@ -23,12 +24,47 @@ const MAX_COOKIE_CHUNKS = 4;
 const COOKIE_VERSION = 1;
 
 const configuredSecret = process.env.SESSION_SECRET?.trim();
-if (process.env.NODE_ENV === "production" && (!configuredSecret || configuredSecret.length < 32)) {
-  throw new Error("SESSION_SECRET must contain at least 32 characters in production.");
+if (configuredSecret && configuredSecret.length < 32) {
+  throw new Error("SESSION_SECRET must contain at least 32 characters.");
 }
 
-// Development sessions intentionally expire whenever the server restarts.
-const sessionSecret = configuredSecret || randomBytes(32).toString("base64url");
+const SESSION_SECRET_FILE = process.env.OPENNOW_SESSION_SECRET_FILE?.trim() || ".opennow-session-secret";
+
+/**
+ * Load or create a file-backed fallback secret so visitor sessions survive
+ * server restarts even when SESSION_SECRET is not configured. The file is
+ * created with owner-only permissions and should never be committed.
+ */
+function loadOrCreatePersistedSessionSecret(): string {
+  try {
+    const existing = readFileSync(SESSION_SECRET_FILE, "utf8").trim();
+    if (existing.length >= 32) {
+      return existing;
+    }
+  } catch {
+    // Create below.
+  }
+
+  const generated = randomBytes(32).toString("base64url");
+  try {
+    writeFileSync(SESSION_SECRET_FILE, `${generated}\n`, { flag: "wx", mode: 0o600 });
+    chmodSync(SESSION_SECRET_FILE, 0o600);
+    if (process.env.NODE_ENV === "production") {
+      console.warn(
+        `[Session] SESSION_SECRET is not set; wrote a persistent generated secret to ${SESSION_SECRET_FILE}. ` +
+          "Set SESSION_SECRET explicitly in production so every instance shares the same secret.",
+      );
+    }
+  } catch (error) {
+    console.warn(
+      `[Session] Could not persist the session secret to ${SESSION_SECRET_FILE}; ` +
+        `visitors will be signed out on every server restart. (${String(error)})`,
+    );
+  }
+  return generated;
+}
+
+const sessionSecret = configuredSecret || loadOrCreatePersistedSessionSecret();
 const encryptionKey = createHash("sha256").update(sessionSecret).digest();
 
 function parseCookies(value: string | undefined): Record<string, string> {

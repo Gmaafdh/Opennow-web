@@ -9,6 +9,7 @@ export function defaultDiagnostics(): StreamDiagnostics {
     nativeRendererActive: false,
     connectedGamepads: 0,
     resolution: "",
+    networkPath: "unknown",
     codec: "",
     hardwareAcceleration: "",
     colorCodec: "",

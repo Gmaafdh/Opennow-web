@@ -1,8 +1,9 @@
-node_modules/
-dist/
-dist-server/
-.opennow-data/
+!.env.example
 .env
 .env.*
-!.env.example
+.opennow-data/
+.opennow-session-secret
+dist-server/
+dist/
+node_modules/
 npm-debug.log*

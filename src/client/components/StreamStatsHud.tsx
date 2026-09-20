@@ -138,7 +138,12 @@ export function StreamStatsHud({
         `Stream features requested ${stats.nativeRequestedStreamingFeaturesSummary ?? "none"} · finalized ${stats.nativeFinalizedStreamingFeaturesSummary ?? "none"}`,
       );
     }
-    const gpuRegion = [stats.gpuType, regionLabel].filter(Boolean).join(" · ");
+    const pathLabel = stats.networkPath === "relay"
+      ? "TURN relay ⚠ (fix local UDP block for lower ping)"
+      : stats.networkPath === "direct"
+        ? "Direct"
+        : "";
+    const gpuRegion = [stats.gpuType, regionLabel, pathLabel].filter(Boolean).join(" · ");
     if (gpuRegion) lines.push(gpuRegion);
     if (hasLagIssue) {
       lines.push(`Lag source ${getLagReasonLabel(stats.lagReason).toLowerCase()} · ${stats.lagReasonDetail}`);
