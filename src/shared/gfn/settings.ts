@@ -91,6 +91,11 @@ export interface Settings {
   hideStreamButtons: boolean;
   showAntiAfkIndicator: boolean;
   showStatsOnLaunch: boolean;
+  /**
+   * Web-only migration marker: set once the live stats HUD has been provisioned
+   * (default-on). Keeps later explicit user toggles from being overwritten.
+   */
+  statsHudProvisioned?: boolean;
   /** Skip the free-tier queue server selection modal and launch with default routing */
   hideServerSelector: boolean;
   /** Desktop UI accent preset */

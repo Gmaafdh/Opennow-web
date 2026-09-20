@@ -69,7 +69,7 @@ function readSettings(): Settings {
   try {
     const raw = localStorage.getItem("opennow.web.settings");
     const stored = raw ? JSON.parse(raw) as Partial<Settings> : {};
-    return {
+    const settings: Settings = {
       ...WEB_DEFAULT_SETTINGS,
       ...stored,
       streamClientMode: "web",
@@ -77,6 +77,15 @@ function readSettings(): Settings {
       showNativeStreamerStats: false,
       nativeExternalRenderer: false,
     };
+    // One-time provision of the live stats HUD (GFN-style overlay). Existing
+    // sessions predate the default-on change; respect explicit toggles made
+    // after provisioning.
+    if (settings.statsHudProvisioned !== true) {
+      settings.showStatsOnLaunch = true;
+      settings.statsHudProvisioned = true;
+      writeSettings(settings);
+    }
+    return settings;
   } catch {
     return { ...WEB_DEFAULT_SETTINGS };
   }

@@ -2353,26 +2353,46 @@ export function App(): JSX.Element {
             console.log("[Recovery] Ignoring signaling disconnect during app shutdown");
             return;
           }
-          if (streamStatusRef.current !== "idle" && isExpectedNativeSessionClose(event.reason)) {
-            handleExpectedNativeSessionClose(event.reason);
-            return;
-          }
+          // Native-streamer semantics only: there a BYE/peerRemoved means the
+          // native process deliberately ended the stream. On the web client a
+          // BYE usually means the streamed app exited (e.g. a Steam logout
+          // closed the game) while the GeForce NOW session itself is still
+          // alive — that must fall through to recovery below, matching GFN
+          // where the session keeps running after a game exits.
           if (
             nativeStreamingRef.current
-            && streamStatusRef.current === "streaming"
+            && streamStatusRef.current !== "idle"
             && isExpectedNativeSessionClose(event.reason)
           ) {
             handleExpectedNativeSessionClose(event.reason);
             return;
           }
+          const remotePeerEndedMedia = isExpectedNativeSessionClose(event.reason);
           const iceState = latestIceConnectionStateRef.current;
           if (
-            (hasConfirmedRemoteIceRef.current && iceState === "new") ||
-            iceState === "connected" ||
-            iceState === "completed" ||
-            iceState === "checking"
+            !remotePeerEndedMedia &&
+            (
+              (hasConfirmedRemoteIceRef.current && iceState === "new") ||
+              iceState === "connected" ||
+              iceState === "completed" ||
+              iceState === "checking"
+            )
           ) {
             console.log(`[Recovery] Ignoring signaling disconnect while ICE state is ${iceState}`);
+            return;
+          }
+          if (remotePeerEndedMedia && !hasConfirmedRemoteIceRef.current) {
+            console.warn("[Recovery] Remote peer ended the session before ICE completed");
+            clientRef.current?.dispose();
+            clientRef.current = null;
+            setLaunchError({
+              stage: streamStatusToLoadingStage(streamStatusRef.current),
+              title: t("errors.sessionConnectionLostTitle"),
+              description: t("errors.resumeAttachFailedDescription"),
+            });
+            resetLaunchRuntime({ keepLaunchError: true, keepStreamingContext: true });
+            void refreshNavbarActiveSession();
+            launchInFlightRef.current = false;
             return;
           }
           // Official-style behavior: if the attach never reached a confirmed remote ICE

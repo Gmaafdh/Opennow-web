@@ -48,7 +48,7 @@ export const WEB_DEFAULT_SETTINGS: Settings = {
   microphoneDeviceId: "",
   hideStreamButtons: false,
   showAntiAfkIndicator: true,
-  showStatsOnLaunch: false,
+  showStatsOnLaunch: true,
   hideServerSelector: false,
   appAccentColor: "green",
   appTheme: "auto",
