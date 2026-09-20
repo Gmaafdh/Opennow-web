@@ -60,8 +60,13 @@ export function attachSignalingBridge(server: HttpServer): void {
           unsubscribe = signaling.onEvent((event) => send({ type: "event", payload: event }));
           await signaling.connect();
         } else if (message.type === "answer") {
+          console.log(`[SignalingBridge] Relaying browser answer (${message.payload.sdp.length} chars) to the game server.`);
           await signaling?.sendAnswer(message.payload);
         } else if (message.type === "ice") {
+          console.log(`[SignalingBridge] Relaying browser ICE candidate: ${String(message.payload.candidate).slice(0, 80)}`);
+          if (!signaling) {
+            console.warn("[SignalingBridge] Dropped browser ICE candidate: signaling is not connected yet.");
+          }
           await signaling?.sendIceCandidate(message.payload);
         } else if (message.type === "keyframe") {
           await signaling?.requestKeyframe(message.payload);
