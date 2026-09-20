@@ -210,6 +210,12 @@ interface ClientOptions {
   onMicStateChange?: (state: MicStateChange) => void;
   onIceConnectionStateChange?: (state: RTCIceConnectionState) => void;
   onPeerConnectionStateChange?: (state: RTCPeerConnectionState) => void;
+  /**
+   * Fired when ICE gathering finished (including after the fallback-relay
+   * retry) with zero local candidates. The handshake cannot possibly succeed,
+   * so the host should fail fast with a "WebRTC is blocked" message.
+   */
+  onGatheringBlocked?: () => void;
   /** Optional host callback for controller overlay shortcut edge presses. */
   onControllerMetaPress?: (event: { controllerId: number; gamepad: Gamepad }) => void;
 }
@@ -306,6 +312,24 @@ function toRtcIceServers(iceServers: IceServer[]): RTCIceServer[] {
     credential: server.credential,
   }));
 }
+
+/**
+ * Last-resort TURN relays (community "open relay" project) used only when the
+ * browser gathers zero local ICE candidates — e.g. when a firewall/VPN blocks
+ * every local UDP socket. Relay candidates over TCP/TLS 443 pass most
+ * firewalls. Expect extra latency when these are actually used.
+ */
+const FALLBACK_RELAY_ICE_SERVERS: RTCIceServer[] = [
+  {
+    urls: [
+      "turn:openrelay.metered.ca:443?transport=tcp",
+      "turn:openrelay.metered.ca:80?transport=tcp",
+      "turns:openrelay.metered.ca:443?transport=tcp",
+    ],
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
+];
 
 async function toBytes(data: string | Blob | ArrayBuffer): Promise<Uint8Array> {
   if (typeof data === "string") {
@@ -4401,19 +4425,77 @@ export class GfnWebRtcClient {
 
     let answerSent = false;
     const queuedLocalIce: IceCandidatePayload[] = [];
+    const sentLocalCandidates = new Set<string>();
+    let localCandidateCount = 0;
+    let fallbackRelayTried = false;
     const sendLocalIce = (candidate: IceCandidatePayload): void => {
+      sentLocalCandidates.add(candidate.candidate);
+      localCandidateCount += 1;
       window.openNow.sendIceCandidate(candidate).catch((error) => {
         this.log(`Failed to send local ICE candidate: ${String(error)}`);
       });
     };
 
+    // Safety net for a gathering-complete event with zero candidates: sweep
+    // the completed local description for candidates that never surfaced
+    // through onicecandidate before declaring the handshake dead.
+    const finishLocalIceGathering = (): void => {
+      const localSdp = pc.localDescription?.sdp ?? "";
+      for (const match of localSdp.matchAll(/^a=candidate:(.+)$/gm)) {
+        const candidateLine = `candidate:${match[1].trim()}`;
+        if (sentLocalCandidates.has(candidateLine)) continue;
+        this.log(`Recovered local ICE candidate from local SDP: ${candidateLine}`);
+        const candidate: IceCandidatePayload = {
+          candidate: candidateLine,
+          sdpMid: "0",
+          sdpMLineIndex: 0,
+        };
+        if (!answerSent) {
+          queuedLocalIce.push(candidate);
+          sentLocalCandidates.add(candidateLine);
+          localCandidateCount += 1;
+        } else {
+          sendLocalIce(candidate);
+        }
+      }
+      this.log(`Local ICE candidates gathered: ${localCandidateCount}`);
+      if (localCandidateCount > 0) return;
+
+      if (!fallbackRelayTried) {
+        // Zero candidates means the browser could not open ANY local UDP path
+        // (firewall, VPN, antivirus or a "WebRTC protection" extension). Give
+        // it one more chance with public TURN relays reachable over TCP 443,
+        // which produce relay candidates even when local UDP is blocked.
+        fallbackRelayTried = true;
+        this.log("No local ICE candidates gathered — retrying with fallback TURN relays (TCP/TLS 443)…");
+        try {
+          const current = pc.getConfiguration();
+          pc.setConfiguration({
+            ...current,
+            iceServers: [...(current.iceServers ?? []), ...FALLBACK_RELAY_ICE_SERVERS],
+          });
+          pc.restartIce();
+        } catch (error) {
+          this.log(`Fallback relay retry failed: ${String(error)}`);
+        }
+        return;
+      }
+
+      this.log(
+        "WARNING: browser still gathered 0 ICE candidates after fallback retry. " +
+          "WebRTC is blocked by the browser/network (VPN, firewall, antivirus or extension). The stream cannot connect like this.",
+      );
+      this.options.onGatheringBlocked?.();
+    };
+
     pc.onicecandidate = (event) => {
       if (!event.candidate) {
         this.log("ICE gathering complete (null candidate)");
+        finishLocalIceGathering();
         return;
       }
       const payload = event.candidate.toJSON();
-      if (!payload.candidate) {
+      if (!payload.candidate || sentLocalCandidates.has(payload.candidate)) {
         return;
       }
       this.log(`Local ICE candidate: ${payload.candidate}`);
@@ -4425,6 +4507,8 @@ export class GfnWebRtcClient {
       };
       if (!answerSent) {
         queuedLocalIce.push(candidate);
+        sentLocalCandidates.add(candidate.candidate);
+        localCandidateCount += 1;
         this.log("Queued local ICE candidate until answer is sent");
         return;
       }

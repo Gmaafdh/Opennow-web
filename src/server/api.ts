@@ -22,6 +22,23 @@ export function registerApi(app: Express): void {
     response.json({ ok: true, runtime: "web", streamer: "webrtc" });
   });
 
+  // Browser-side stream diagnostics pipe. The client batches [WebRTC] /
+  // signaling / recovery lines here so one server log shows both sides of the
+  // ICE handshake. Session-scoped and hard-capped to keep it debug-grade.
+  app.post("/api/client-log", asyncRoute(async (request, response) => {
+    const state = getSession(request, response);
+    if (!state.publicSession()) {
+      throw Object.assign(new Error("Authentication required."), { statusCode: 401 });
+    }
+    const lines = Array.isArray(request.body?.lines) ? request.body.lines : [];
+    for (const line of lines.slice(0, 200)) {
+      if (typeof line === "string" && line.trim().length > 0) {
+        console.log(`[Client] ${line.trim().slice(0, 2000)}`);
+      }
+    }
+    response.status(204).end();
+  }));
+
   app.get("/api/providers", asyncRoute(async (_request, response) => {
     response.json(await getLoginProviders());
   }));
@@ -225,9 +242,11 @@ export function registerApi(app: Express): void {
   app.post("/api/stream/stop", asyncRoute(async (request, response) => {
     const state = getSession(request, response);
     const input = request.body as SessionStopRequest;
-    if (!state.ownsActiveSession(input.sessionId)) {
-      throw Object.assign(new Error("This stream does not belong to the current browser session."), { statusCode: 403 });
-    }
+    // Ownership is enforced upstream by the NVIDIA token itself: stopSession
+    // can only ever affect sessions that belong to this account. The
+    // per-browser ownership check is intentionally skipped so leftover
+    // sessions created under an earlier browser session (e.g. after a server
+    // restart) can still be cleaned up instead of 403-ing forever.
     const auth = await state.requireAuth();
     await stopSession({
       ...input,

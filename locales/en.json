@@ -923,6 +923,8 @@
     "nativeStreamerStoppedDescription": "The native streaming process stopped and could not be restored automatically. Try resuming the session again from the app.",
     "sessionConnectionLostTitle": "Session Connection Lost",
     "resumeAttachFailedDescription": "Resume attach failed before media handshake. Try resuming once again.",
+    "webrtcBlockedTitle": "WebRTC Is Blocked",
+    "webrtcBlockedDescription": "Your browser could not create any network path for the stream (0 ICE candidates). Disable any VPN, allow your browser through the firewall/antivirus, disable extensions like \"WebRTC leak prevention\", or try a different browser, then start the stream again.",
     "sessionConnectionLostDescription": "The connection to your running session was lost and could not be restored automatically. Try resuming it again from the app.",
     "sessionResumeFailedDescription": "The connection to the running session was lost and resume failed.",
     "queueAdPlayTimeout": "Ad play timeout",

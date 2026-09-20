@@ -33,6 +33,7 @@ import {
   SAFE_FALLBACK_STREAM_PROFILE,
 } from "@shared/gfn";
 import { GfnWebRtcClient } from "./platforms/gfn/webrtcClient";
+import { clientLog } from "./api";
 import { formatShortcutForDisplay, isShortcutMatch, normalizeShortcut } from "./shortcuts";
 import { dispatchStreamShortcutAction } from "./streamShortcutActions";
 import { useElapsedSeconds } from "./utils/useElapsedSeconds";
@@ -2067,7 +2068,10 @@ export function App(): JSX.Element {
         keyboardLayout: settings.keyboardLayout,
         clipboardPaste: settings.clipboardPaste,
         readClipboardText: readStreamClipboardText,
-        onLog: (line: string) => console.log(`[WebRTC] ${line}`),
+        onLog: (line: string) => {
+          console.log(`[WebRTC] ${line}`);
+          clientLog(`[WebRTC] ${line}`);
+        },
         onStats: (stats) => diagnosticsStore.set(stats),
         onTimeWarning: (warning) => {
           setRemoteStreamWarning({
@@ -2084,6 +2088,21 @@ export function App(): JSX.Element {
           if (streamStatusRef.current === "streaming") {
             dispatchStreamShortcutAction("toggleSidebar");
           }
+        },
+        onGatheringBlocked: () => {
+          console.error(
+            "[Stream] Browser gathered zero ICE candidates — WebRTC is blocked (VPN, firewall, antivirus or a browser extension).",
+          );
+          clientRef.current?.dispose();
+          clientRef.current = null;
+          setLaunchError({
+            stage: streamStatusToLoadingStage(streamStatusRef.current),
+            title: t("errors.webrtcBlockedTitle"),
+            description: t("errors.webrtcBlockedDescription"),
+          });
+          resetLaunchRuntime({ keepLaunchError: true, keepStreamingContext: true });
+          void refreshNavbarActiveSession();
+          launchInFlightRef.current = false;
         },
         onIceConnectionStateChange: (iceState) => {
           latestIceConnectionStateRef.current = iceState;
@@ -2172,6 +2191,7 @@ export function App(): JSX.Element {
 
     const unsubscribe = window.openNow.onSignalingEvent(async (event: MainToRendererSignalingEvent) => {
       console.log(`[App] Signaling event: ${event.type}`, event.type === "offer" ? `(SDP ${event.sdp.length} chars)` : "", event.type === "remote-ice" ? event.candidate : "");
+      clientLog(`[Signaling] event=${event.type}${event.type === "disconnected" ? ` reason=${event.reason ?? "unknown"}` : ""}`);
       try {
         if (event.type === "offer") {
           pendingControlledDisconnectsRef.current = 0;

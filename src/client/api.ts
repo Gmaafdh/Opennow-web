@@ -20,6 +20,30 @@ import { unsupportedNativeCloudGsyncCapabilities } from "@shared/cloudGsync";
 import type { BrowserSession, DeviceLoginChallengePayload, DeviceLoginPollPayload } from "./types";
 import { WEB_DEFAULT_SETTINGS } from "./webDefaults";
 
+const CLIENT_LOG_BATCH_LIMIT = 200;
+const CLIENT_LOG_LINE_LIMIT = 2000;
+const clientLogBuffer: string[] = [];
+let clientLogFlushTimer: number | null = null;
+
+/**
+ * Forward browser-side stream diagnostics to the server console so a single
+ * server log shows both sides of the signaling/ICE handshake. Fire-and-forget,
+ * batched once per second and hard-capped to keep it debug-grade, not noisy.
+ */
+export function clientLog(line: string): void {
+  if (clientLogBuffer.length >= CLIENT_LOG_BATCH_LIMIT) return;
+  clientLogBuffer.push(`${new Date().toISOString()} ${line.slice(0, CLIENT_LOG_LINE_LIMIT)}`);
+  if (clientLogFlushTimer !== null) return;
+  clientLogFlushTimer = window.setTimeout(() => {
+    clientLogFlushTimer = null;
+    const lines = clientLogBuffer.splice(0, CLIENT_LOG_BATCH_LIMIT);
+    if (lines.length === 0) return;
+    void api("/api/client-log", { method: "POST", body: JSON.stringify({ lines }) }).catch(() => {
+      // Diagnostics delivery is best-effort by design.
+    });
+  }, 1000);
+}
+
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(path, {
     ...init,
