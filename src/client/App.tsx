@@ -2512,6 +2512,32 @@ export function App(): JSX.Element {
     setQueuePosition(undefined);
     warmNativeStreamerForLaunch();
     let launchGameContext: GameInfo = game;
+    // Track the session created by this launch so it can be stopped when the
+    // launch is cancelled or fails while still queued. Without this, every
+    // cancelled launch orphaned a queued session, and the next launch's
+    // session was torn down by NVIDIA's one-session-per-account enforcement
+    // (404 INVALID_SESSION_ID_NOT_FOUND mid-queue).
+    let launchedSession: SessionInfo | null = null;
+    const stopLaunchedSessionQuietly = async (): Promise<void> => {
+      const target = launchedSession;
+      if (!target) return;
+      launchedSession = null;
+      try {
+        await window.openNow.stopSession({
+          token: authSession?.tokens.idToken ?? authSession?.tokens.accessToken,
+          streamingBaseUrl: target.streamingBaseUrl ?? effectiveStreamingBaseUrl,
+          serverIp: target.serverIp,
+          zone: target.zone,
+          sessionId: target.sessionId,
+          clientId: target.clientId,
+          deviceId: target.deviceId,
+        });
+        console.log("[Launch] Stopped session after launch ended:", target.sessionId);
+      } catch (error) {
+        // A 404 here just means NVIDIA already removed the session — fine.
+        console.warn("[Launch] Could not stop session after launch ended:", error);
+      }
+    };
 
     try {
       const token = authSession?.tokens.idToken ?? authSession?.tokens.accessToken;
@@ -2564,11 +2590,12 @@ export function App(): JSX.Element {
       );
       const launchStreamingBaseUrl = i2pStorageRegionBaseUrl ?? options?.streamingBaseUrl ?? effectiveStreamingBaseUrl;
       let existingSessionStrategy: ExistingSessionStrategy | undefined;
+      let activeSessions: ActiveSessionInfo[] = [];
 
       // Check for active sessions first
       if (token) {
         try {
-          const activeSessions = await window.openNow.getActiveSessions(token, launchStreamingBaseUrl);
+          activeSessions = await window.openNow.getActiveSessions(token, launchStreamingBaseUrl);
           if (activeSessions.length > 0) {
             // Only claim sessions that are already paused/ready (status 2 or 3).
             // Status=1 sessions are still in queue/setup; sending a RESUME claim
@@ -2605,6 +2632,27 @@ export function App(): JSX.Element {
         }
       }
 
+      // Stop leftover queued (status=1) sessions before creating a new one —
+      // e.g. a session orphaned by a cancelled earlier launch. NVIDIA enforces
+      // one session per account, and an orphaned queued session causes the new
+      // one to be torn down mid-queue (404 INVALID_SESSION_ID_NOT_FOUND).
+      if (token) {
+        for (const leftover of activeSessions.filter((entry) => entry.status === 1)) {
+          try {
+            await window.openNow.stopSession({
+              token,
+              streamingBaseUrl: leftover.streamingBaseUrl ?? launchStreamingBaseUrl,
+              serverIp: leftover.serverIp,
+              zone: "prod",
+              sessionId: leftover.sessionId,
+            });
+            console.log("[Launch] Stopped leftover queued session:", leftover.sessionId);
+          } catch (error) {
+            console.warn("[Launch] Failed to stop leftover queued session:", leftover.sessionId, error);
+          }
+        }
+      }
+
       const sessionProxyUrl = activeSessionProxyUrl;
 
       // Create new session
@@ -2624,6 +2672,7 @@ export function App(): JSX.Element {
 
       setSession(newSession);
       setQueuePosition(newSession.queuePosition);
+      launchedSession = newSession;
 
       // Poll for readiness.
       // Queue and setup/starting modes wait indefinitely until the session becomes ready
@@ -2650,7 +2699,10 @@ export function App(): JSX.Element {
           while (elapsed < pollIntervalMs) {
             await sleep(tickMs);
             elapsed += tickMs;
-            if (launchAbortRef.current) return;
+            if (launchAbortRef.current) {
+              await stopLaunchedSessionQuietly();
+              return;
+            }
             // Sync ad-action responses from sessionRef into the local tracking variable
             // so shouldUseQueueAdPolling sees the updated adState immediately.
             const refSession = sessionRef.current;
@@ -2671,16 +2723,19 @@ export function App(): JSX.Element {
           while (queueAdPlaybackRef.current && Date.now() < graceDeadline) {
             await sleep(200);
             if (launchAbortRef.current) {
+              await stopLaunchedSessionQuietly();
               return;
             }
           }
         }
 
         if (launchAbortRef.current) {
+          await stopLaunchedSessionQuietly();
           return;
         }
 
         if (launchAbortRef.current) {
+          await stopLaunchedSessionQuietly();
           return;
         }
 
@@ -2706,10 +2761,16 @@ export function App(): JSX.Element {
             break;
           } catch (error) {
             lastPollError = error;
-            if (launchAbortRef.current) return;
+            if (launchAbortRef.current) {
+              await stopLaunchedSessionQuietly();
+              return;
+            }
             console.warn(`Session poll failed (attempt ${pollRetry + 1}/3):`, error);
             await sleep(1500);
-            if (launchAbortRef.current) return;
+            if (launchAbortRef.current) {
+              await stopLaunchedSessionQuietly();
+              return;
+            }
           }
         }
         if (lastPollError || !polled) {
@@ -2717,11 +2778,13 @@ export function App(): JSX.Element {
         }
 
         if (launchAbortRef.current) {
+          await stopLaunchedSessionQuietly();
           return;
         }
 
         const mergedSession = mergePolledSessionState(latestSession, polled);
         latestSession = mergedSession;
+        launchedSession = mergedSession;
 
         setSession(mergedSession);
         setQueuePosition(mergedSession.queuePosition);
@@ -2767,9 +2830,17 @@ export function App(): JSX.Element {
       await window.openNow.connectSignaling(buildSignalingConnectRequest(sessionToConnect));
     } catch (error) {
       if (launchAbortRef.current) {
+        await stopLaunchedSessionQuietly();
         return;
       }
       console.error("Launch failed:", error);
+      // If the launch failed while the session was still queued/setup, stop it
+      // so it does not linger and get torn down as a duplicate on the next
+      // launch (404 INVALID_SESSION_ID_NOT_FOUND mid-queue). Sessions that
+      // already reached ready/streaming are left alone for resume/recovery.
+      if (launchedSession && launchedSession.status === 1) {
+        await stopLaunchedSessionQuietly();
+      }
       setLaunchError(toLaunchErrorState(t, error, loadingStep, launchGameContext));
       await disconnectSignalingControlled();
       clientRef.current?.dispose();
