@@ -4,6 +4,8 @@ import type { JSX } from "react";
 import { AnimatePresence, m } from "motion/react";
 import type { CatalogSortOption, GameInfo } from "@shared/gfn";
 import { GameCardListItem, useCatalogCardActionsRef } from "./GameCardListItem";
+import { PosterCard } from "./PosterCard";
+import { getStoreDisplayName } from "./GameCard";
 import type { PlaytimeData } from "../lib/gameCatalog";
 import { getControllerFeaturedGames } from "../lib/controllerCatalogUi";
 import {
@@ -458,23 +460,15 @@ export const LibraryPage = memo(function LibraryPage({
 
   const libraryGridItems = useMemo(
     () => visibleLibraryGames.map((game) => (
-      <div key={game.id} className="library-game-wrapper">
-        <GameCardListItem
-          game={game}
-          isSelected={game.id === selectedGameId}
-          selectedVariantId={selectedVariantByGameId[game.id]}
-          actionsRef={catalogActionsRef}
-        />
-        <div
-          className={`library-last-played${game.lastPlayed ? "" : " library-last-played--empty"}`}
-          aria-hidden={game.lastPlayed ? undefined : true}
-        >
-          <Clock size={12} />
-          <span>{game.lastPlayed ? formatCatalogLastPlayed(t, game.lastPlayed) : "—"}</span>
-        </div>
-      </div>
+      <PosterCard
+        key={game.id}
+        game={game}
+        isSelected={game.id === selectedGameId}
+        onSelect={() => onSelectGame(game.id)}
+        onPlay={() => onPlayGame(game)}
+      />
     )),
-    [catalogActionsRef, selectedGameId, selectedVariantByGameId, t, visibleLibraryGames],
+    [onPlayGame, onSelectGame, selectedGameId, visibleLibraryGames],
   );
 
   if (controllerMode) {
@@ -513,135 +507,94 @@ export const LibraryPage = memo(function LibraryPage({
     );
   }
 
+  const collectionChips = libraryFilterGroups.flatMap((group) =>
+    group.options.map((option) => ({ ...option, groupId: group.id })),
+  );
+
   return (
-    <div className="library-page">
-      <header className="library-toolbar">
-        <div className="library-title">
-          <Library className="library-title-icon" size={22} />
-          <h1>{t("library.title")}</h1>
-        </div>
-
-        <div className="library-search">
-          <Search className="library-search-icon" size={16} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder={t("library.searchPlaceholder")}
-            className="library-search-input"
-          />
-        </div>
-
-        {libraryFilterGroups.length > 0 && (
-          <details className="library-filter-dropdown">
-            <summary className="library-filter-dropdown-trigger">
-              <span className="library-filter-dropdown-label">
-                <Filter size={14} />
-                {t("library.filters")}
-              </span>
-              {selectedLibraryFilterIds.length > 0 && <span className="library-filter-dropdown-count">{selectedLibraryFilterIds.length}</span>}
-              <ChevronDown size={14} className="library-filter-dropdown-chevron" />
-            </summary>
-            <div className="library-filter-dropdown-menu">
-              {libraryFilterGroups.map((group) => (
-                <div key={group.id} className="library-filter-dropdown-group">
-                  <div className="library-filter-group-label">{group.label}</div>
-                  <div className="library-filter-chips">
-                    {group.options.map((option) => {
-                      const active = selectedLibraryFilterIds.includes(option.id);
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          className={`library-filter-chip ${active ? "active" : ""}`}
-                          onClick={() => toggleLibraryFilter(option.id)}
-                          aria-pressed={active}
-                        >
-                          <span>{option.label}</span>
-                          <span className="library-filter-chip-count">{option.count}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </details>
-        )}
-
-        {sortOptions.length > 0 && (
-          <div className="library-sort">
-            <ArrowUpDown size={14} />
-            <SelectDropdown
-              value={selectedSortId}
-              options={sortOptions.map((option) => ({ value: option.id, label: option.label }))}
-              onChange={onSortChange}
-              ariaLabel={t("library.sortAriaLabel")}
-            />
-          </div>
-        )}
-
-        <span className="library-count">{libraryCountLabel}</span>
-      </header>
-
-      <AnimatePresence initial={false}>
-        {activeLibraryFilterOptions.length > 0 && (
-          <m.div
-            className="library-active-filters"
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={pageTransition}
-          >
-            <span className="library-active-filter-label">{t("library.activeFilters")}</span>
-            {activeLibraryFilterOptions.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                className="library-active-filter-chip"
-                onClick={() => toggleLibraryFilter(option.id)}
-                aria-label={t("library.removeFilter", { filter: option.label })}
-              >
-                <span>{option.label}</span>
-                <X size={12} />
-              </button>
-            ))}
-            <button type="button" className="library-clear-filters" onClick={clearLibraryFilters}>
-              {t("library.clearFilters")}
+    <div className="library-page library-page--v2">
+      <div className="library-scroll">
+        <div className="library-section-head">
+          <h2 className="library-section-title">
+            {hasActiveLibraryFilters ? activeLibraryFilterOptions[0].label : "All games"}
+          </h2>
+          <div className="library-section-actions">
+            {sortOptions.length > 0 && (
+              <div className="library-sort">
+                <ArrowUpDown size={14} />
+                <SelectDropdown
+                  value={selectedSortId}
+                  options={sortOptions.map((option) => ({ value: option.id, label: option.label }))}
+                  onChange={onSortChange}
+                  ariaLabel={t("library.sortAriaLabel")}
+                />
+              </div>
+            )}
+            <button type="button" className="library-new-collection" disabled>
+              New collection
             </button>
-          </m.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
 
-      <div className="library-grid-area">
-        {isLoading ? (
-          <div className="library-empty-state">
-            <MotionSpinner className="library-spinner" size={36} label={t("common.loading")} />
-            <p>{t("library.empty.loadingLibrary")}</p>
+        <div className="library-collections">
+          <div className="library-collections-chips">
+            <button
+              type="button"
+              className={`library-chip${!hasActiveLibraryFilters ? " active" : ""}`}
+              onClick={clearLibraryFilters}
+            >
+              <span>All</span>
+              <span className="library-chip-count">{libraryCount}</span>
+            </button>
+            {collectionChips.map((chip) => {
+              const active = selectedLibraryFilterIds.includes(chip.id);
+              return (
+                <button
+                  key={chip.id}
+                  type="button"
+                  className={`library-chip${active ? " active" : ""}`}
+                  onClick={() => toggleLibraryFilter(chip.id)}
+                  aria-pressed={active}
+                >
+                  <span>{chip.label}</span>
+                  <span className="library-chip-count">{chip.count}</span>
+                </button>
+              );
+            })}
           </div>
-        ) : libraryCount === 0 ? (
-          <div className="library-empty-state">
-            <Gamepad2 className="library-empty-icon" size={44} />
-            <h3>{t("library.empty.libraryEmpty")}</h3>
-            <p>{t("library.empty.ownedGamesAppearHere")}</p>
-          </div>
-        ) : visibleLibraryGames.length === 0 ? (
-          <div className="library-empty-state">
-            <Search className="library-empty-icon" size={44} />
-            <h3>{hasActiveLibraryFilters && !librarySearchHasQuery ? t("library.empty.noFilteredGames") : t("library.empty.noGamesFound")}</h3>
-            <p>
-              {librarySearchHasQuery
-                ? t("library.empty.noGamesMatch", { query: searchQuery })
-                : hasActiveLibraryFilters
-                  ? t("library.empty.tryAdjustingFilters")
-                : t("library.empty.noGamesMatch", { query: searchQuery })}
-            </p>
-          </div>
-        ) : (
-          <div className="game-grid">
-            {libraryGridItems}
-          </div>
-        )}
+          <span className="library-collections-hint">Right-click a game for actions</span>
+        </div>
+
+        <div className="library-grid-area">
+          {isLoading ? (
+            <div className="library-empty-state">
+              <MotionSpinner className="library-spinner" size={36} label={t("common.loading")} />
+              <p>{t("library.empty.loadingLibrary")}</p>
+            </div>
+          ) : libraryCount === 0 ? (
+            <div className="library-empty-state">
+              <Gamepad2 className="library-empty-icon" size={44} />
+              <h3>{t("library.empty.libraryEmpty")}</h3>
+              <p>{t("library.empty.ownedGamesAppearHere")}</p>
+            </div>
+          ) : visibleLibraryGames.length === 0 ? (
+            <div className="library-empty-state">
+              <Search className="library-empty-icon" size={44} />
+              <h3>{hasActiveLibraryFilters && !librarySearchHasQuery ? t("library.empty.noFilteredGames") : t("library.empty.noGamesFound")}</h3>
+              <p>
+                {librarySearchHasQuery
+                  ? t("library.empty.noGamesMatch", { query: searchQuery })
+                  : hasActiveLibraryFilters
+                    ? t("library.empty.tryAdjustingFilters")
+                  : t("library.empty.noGamesMatch", { query: searchQuery })}
+              </p>
+            </div>
+          ) : (
+            <div className="game-grid">
+              {libraryGridItems}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { Search, LayoutGrid, ArrowUpDown, Filter, ChevronDown, Gamepad2, Menu } from "lucide-react";
+import { Search, LayoutGrid, ArrowUpDown, Filter, ChevronDown, ChevronRight, Gamepad2, Menu, Play } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { JSX } from "react";
 import { AnimatePresence, m } from "motion/react";
@@ -6,6 +6,8 @@ import { isOwnedLibraryStatus } from "@shared/gfn";
 import type { CatalogFilterGroup, CatalogSortOption, GameInfo, GamePanelResult, GameVariant } from "@shared/gfn";
 import { getStoreDisplayName, getStoreIconComponent } from "./GameCard";
 import { GameCardListItem, useCatalogCardActionsRef } from "./GameCardListItem";
+import { PosterCard } from "./PosterCard";
+import type { PlaytimeData } from "../lib/gameCatalog";
 import { appendImageType, appendUnique, gameMatchesActiveSession } from "../lib/controllerCatalogUi";
 import { useTranslation } from "../i18n";
 import { controllerButton, readControllerGamepadButtons } from "../utils/controllerGamepad";
@@ -62,6 +64,11 @@ export interface HomePageProps {
   markOwnedInFlightByVariantId?: Record<string, boolean>;
   onPreviousControllerPage?: () => void;
   onNextControllerPage?: () => void;
+  libraryGames?: GameInfo[];
+  playtimeData?: PlaytimeData;
+  favoriteGameIds?: string[];
+  streamMetaLabel?: string;
+  onNavigateLibrary?: () => void;
 }
 
 function getSteamHeaderUrl(game: GameInfo): string | undefined {
@@ -246,6 +253,11 @@ export const HomePage = memo(function HomePage({
   markOwnedInFlightByVariantId = {},
   onPreviousControllerPage,
   onNextControllerPage,
+  libraryGames = [],
+  playtimeData = {},
+  favoriteGameIds = [],
+  streamMetaLabel,
+  onNavigateLibrary,
 }: HomePageProps): JSX.Element {
   const { t } = useTranslation();
   const catalogActionsRef = useCatalogCardActionsRef({
@@ -681,105 +693,166 @@ export const HomePage = memo(function HomePage({
 
   const hasGames = games.length > 0;
   const showInitialLoading = isLoading && !hasGames;
-  const visibleFilterGroups = filterGroups.filter((group) => ["digital_store", "genre", "subscriptions"].includes(group.id));
-  const activeFilterCount = selectedFilterIds.length;
-  const countLabel = showInitialLoading
-    ? t("home.count.loading")
-    : totalCount > games.length && supportedCount > 0
-      ? t("home.count.shownTotalSupported", { shown: games.length, total: totalCount, supported: supportedCount })
-      : totalCount > games.length
-        ? t("home.count.shownTotal", { shown: games.length, total: totalCount })
-        : supportedCount > 0
-          ? t("home.count.shownSupported", { shown: games.length, supported: supportedCount })
-          : t("home.count.shown", { shown: games.length });
+  const isSearching = searchQuery.trim().length > 0;
+
+  // Build rich home shelves from the owned library + playtime signals.
+  const librarySource = libraryGames.length > 0 ? libraryGames : games;
+  const playtimeMs = (game: GameInfo): number => {
+    const raw = playtimeData[game.id]?.lastPlayedAt ?? game.lastPlayed;
+    const ms = raw ? Date.parse(raw) : NaN;
+    return Number.isFinite(ms) ? ms : 0;
+  };
+
+  const recentlyPlayed = useMemo(
+    () => [...librarySource]
+      .filter((game) => playtimeMs(game) > 0)
+      .sort((a, b) => playtimeMs(b) - playtimeMs(a)),
+    [librarySource, playtimeData],
+  );
+
+  const heroGame = recentlyPlayed[0] ?? librarySource[0] ?? games[0];
+
+  const jumpBackIn = useMemo(
+    () => recentlyPlayed.filter((game) => game.id !== heroGame?.id).slice(0, 12),
+    [recentlyPlayed, heroGame],
+  );
+
+  const favourites = useMemo(() => {
+    const favSet = new Set(favoriteGameIds);
+    const favs = librarySource.filter((game) => favSet.has(game.id));
+    if (favs.length > 0) return favs.slice(0, 12);
+    // Fallback: surface a stable pseudo-favourites shelf so the row is never empty.
+    return [...librarySource].slice(0, 12);
+  }, [librarySource, favoriteGameIds]);
+
+  const newInLibrary = useMemo(
+    () => [...librarySource].reverse().slice(0, 12),
+    [librarySource],
+  );
+
+  const heroPlaytimeSeconds = heroGame ? playtimeData[heroGame.id]?.totalSeconds ?? 0 : 0;
+  const heroLastPlayedMs = heroGame ? playtimeMs(heroGame) : 0;
+
+  const formatRelative = (ms: number): string => {
+    if (!ms) return "";
+    const diff = Date.now() - ms;
+    const mins = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins} min ago`;
+    if (hours < 24) return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
+    if (days < 7) return `${days} ${days === 1 ? "day" : "days"} ago`;
+    return new Date(ms).toLocaleDateString();
+  };
+  const formatPlayed = (seconds: number): string => {
+    if (!seconds) return "";
+    const hours = seconds / 3600;
+    if (hours < 1) return `${Math.max(1, Math.round(seconds / 60))} m played`;
+    return `${hours >= 10 ? Math.round(hours) : Math.round(hours * 10) / 10} h played`;
+  };
+
+  const heroBg = heroGame
+    ? (heroGame.heroImageUrl
+        ?? heroGame.imageUrlsByType?.HERO_IMAGE?.[0]
+        ?? heroGame.imageUrlsByType?.KEY_ART?.[0]
+        ?? heroGame.screenshotUrls?.[0]
+        ?? heroGame.imageUrl)
+    : undefined;
+
+  const heroMetaParts = [formatRelative(heroLastPlayedMs), formatPlayed(heroPlaytimeSeconds)].filter(Boolean);
+
+  const renderRow = (title: string, rowGames: GameInfo[], seeAllCount?: number): JSX.Element | null => {
+    if (rowGames.length === 0) return null;
+    return (
+      <section className="home-shelf" key={title}>
+        <div className="home-shelf-head">
+          <h2 className="home-shelf-title">{title}</h2>
+          {onNavigateLibrary && (
+            <button type="button" className="home-shelf-seeall" onClick={onNavigateLibrary}>
+              {seeAllCount ? `See all ${seeAllCount}` : "See all"}
+              <ChevronRight size={14} />
+            </button>
+          )}
+        </div>
+        <div className="home-shelf-row">
+          {rowGames.map((game) => (
+            <PosterCard
+              key={game.id}
+              game={game}
+              isSelected={game.id === selectedGameId}
+              onSelect={() => onSelectGame(game.id)}
+              onPlay={() => onPlayGame(game)}
+            />
+          ))}
+        </div>
+      </section>
+    );
+  };
 
   return (
-    <div className="home-page">
-      <header className="home-toolbar">
-        <div className="home-search">
-          <Search className="home-search-icon" size={16} />
-          <input
-            type="text"
-            className="home-search-input"
-            placeholder={t("home.searchPlaceholder")}
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-          />
-        </div>
-
-        {visibleFilterGroups.length > 0 && (
-          <details className="home-filter-dropdown">
-            <summary className="home-filter-dropdown-trigger">
-              <span className="home-filter-dropdown-label">
-                <Filter size={14} />
-                {t("home.filters")}
-              </span>
-              {activeFilterCount > 0 && <span className="home-filter-dropdown-count">{activeFilterCount}</span>}
-              <ChevronDown size={14} className="home-filter-dropdown-chevron" />
-            </summary>
-            <div className="home-filter-dropdown-menu">
-              {visibleFilterGroups.map((group) => (
-                <div key={group.id} className="home-filter-dropdown-group">
-                  <div className="home-filter-group-label">{group.label}</div>
-                  <div className="home-filter-chips">
-                    {group.options.slice(0, group.id === "genre" ? 8 : group.options.length).map((option) => {
-                      const active = selectedFilterIds.includes(option.id);
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          className={`home-filter-chip ${active ? "active" : ""}`}
-                          onClick={() => onToggleFilter(option.id)}
-                        >
-                          {option.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </details>
-        )}
-
-        {sortOptions.length > 0 && (
-          <div className="home-sort">
-            <ArrowUpDown size={14} />
-            <SelectDropdown
-              value={selectedSortId}
-              options={sortOptions.map((option) => ({ value: option.id, label: option.label }))}
-              onChange={onSortChange}
-              disabled={showInitialLoading}
-              ariaLabel={t("home.sortAriaLabel")}
-            />
-          </div>
-        )}
-
-        <span className="home-count">
-          {countLabel}
-        </span>
-      </header>
-
-      <div className="home-grid-area">
+    <div className="home-page home-page--v2">
+      <div className="home-scroll">
         {showInitialLoading ? (
           <div className="home-empty-state">
             <MotionSpinner className="home-spinner" size={36} label={t("common.loading")} />
             <p>{t("home.empty.loadingGames")}</p>
           </div>
-        ) : !hasGames ? (
-          <div className="home-empty-state">
-            <LayoutGrid size={44} className="home-empty-icon" />
-            <h3>{t("home.empty.noGamesFound")}</h3>
-            <p>
-              {searchQuery || selectedFilterIds.length > 0
-                ? t("home.empty.tryAdjustingSearch")
-                : t("home.empty.checkBackLater")}
-            </p>
-          </div>
+        ) : isSearching ? (
+          hasGames ? (
+            <div className="game-grid game-grid--search">{gameGridItems}</div>
+          ) : (
+            <div className="home-empty-state">
+              <Search size={44} className="home-empty-icon" />
+              <h3>{t("home.empty.noGamesFound")}</h3>
+              <p>{t("home.empty.tryAdjustingSearch")}</p>
+            </div>
+          )
         ) : (
-          <div className="game-grid">
-            {gameGridItems}
-          </div>
+          <>
+            {heroGame && (
+              <section className="home-hero" aria-label={heroGame.title}>
+                {heroBg ? (
+                  <img src={heroBg} alt="" className="home-hero-bg" />
+                ) : (
+                  <div className="home-hero-bg home-hero-bg--placeholder" />
+                )}
+                <div className="home-hero-scrim" />
+                <div className="home-hero-content">
+                  <span className="home-hero-eyebrow">Continue playing</span>
+                  <h1 className="home-hero-title">{heroGame.title}</h1>
+                  {heroMetaParts.length > 0 && (
+                    <p className="home-hero-meta">{heroMetaParts.join(" · ")}</p>
+                  )}
+                  <div className="home-hero-actions">
+                    <button type="button" className="home-hero-play" onClick={() => onPlayGame(heroGame)}>
+                      <Play size={16} fill="currentColor" />
+                      <span>Start</span>
+                      <kbd>Enter</kbd>
+                    </button>
+                    {streamMetaLabel && (
+                      <span className="home-hero-stats">
+                        <span className="home-hero-stats-dot" />
+                        {streamMetaLabel}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {renderRow("Jump back in", jumpBackIn, jumpBackIn.length)}
+            {renderRow("Favourites", favourites)}
+            {renderRow("New in your library", newInLibrary)}
+
+            {!heroGame && (
+              <div className="home-empty-state">
+                <LayoutGrid size={44} className="home-empty-icon" />
+                <h3>{t("home.empty.noGamesFound")}</h3>
+                <p>{t("home.empty.checkBackLater")}</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
