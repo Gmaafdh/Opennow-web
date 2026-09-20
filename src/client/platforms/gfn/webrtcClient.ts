@@ -216,6 +216,12 @@ interface ClientOptions {
    * so the host should fail fast with a "WebRTC is blocked" message.
    */
   onGatheringBlocked?: () => void;
+  /**
+   * Additional ICE servers merged into the peer connection config for every
+   * offer — used to switch the session into TURN relay mode when the
+   * pre-launch probe found that local candidate gathering is blocked.
+   */
+  extraIceServers?: RTCIceServer[];
   /** Optional host callback for controller overlay shortcut edge presses. */
   onControllerMetaPress?: (event: { controllerId: number; gamepad: Gamepad }) => void;
 }
@@ -319,7 +325,7 @@ function toRtcIceServers(iceServers: IceServer[]): RTCIceServer[] {
  * every local UDP socket. Relay candidates over TCP/TLS 443 pass most
  * firewalls. Expect extra latency when these are actually used.
  */
-const FALLBACK_RELAY_ICE_SERVERS: RTCIceServer[] = [
+export const FALLBACK_RELAY_ICE_SERVERS: RTCIceServer[] = [
   {
     urls: [
       "turn:openrelay.metered.ca:443?transport=tcp",
@@ -330,6 +336,68 @@ const FALLBACK_RELAY_ICE_SERVERS: RTCIceServer[] = [
     credential: "openrelayproject",
   },
 ];
+
+export interface WebRtcEnvironmentProbe {
+  /** host + srflx candidates gathered through normal local paths */
+  localCandidateCount: number;
+  /** TURN relay candidates gathered (only meaningful for relays) */
+  relayCandidateCount: number;
+}
+
+const PROBE_CACHE_MS = 5 * 60 * 1000;
+let environmentProbeCache: { atMs: number; result: WebRtcEnvironmentProbe } | null = null;
+
+/**
+ * Probe the browser's WebRTC environment BEFORE launching a session. Uses a
+ * throwaway peer connection and counts actually gathered candidates. A result
+ * of zero local candidates means the browser cannot open any UDP socket at all
+ * (VPN/firewall/antivirus/extension) and a stream could never connect; zero
+ * local but working relay candidates means the launch can proceed in relay
+ * mode. Cached briefly — the environment does not change per session.
+ */
+export async function probeWebRtcEnvironment(force = false): Promise<WebRtcEnvironmentProbe> {
+  if (!force && environmentProbeCache && Date.now() - environmentProbeCache.atMs < PROBE_CACHE_MS) {
+    return environmentProbeCache.result;
+  }
+
+  const probePc = new RTCPeerConnection({
+    iceServers: [
+      { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
+      ...FALLBACK_RELAY_ICE_SERVERS,
+    ],
+  });
+
+  try {
+    probePc.createDataChannel("probe");
+    const finished = new Promise<void>((resolve) => {
+      const finish = (): void => {
+        window.clearTimeout(timer);
+        probePc.removeEventListener("icegatheringstatechange", onChange);
+        resolve();
+      };
+      const onChange = (): void => {
+        if (probePc.iceGatheringState === "complete") finish();
+      };
+      const timer = window.setTimeout(finish, 4500);
+      probePc.addEventListener("icegatheringstatechange", onChange);
+    });
+    await probePc.setLocalDescription(await probePc.createOffer());
+    await finished;
+
+    let localCandidateCount = 0;
+    let relayCandidateCount = 0;
+    for (const match of probePc.localDescription?.sdp?.matchAll(/^a=candidate:(.+)$/gm) ?? []) {
+      if (/\btyp relay\b/.test(match[1])) relayCandidateCount += 1;
+      else localCandidateCount += 1;
+    }
+
+    const result: WebRtcEnvironmentProbe = { localCandidateCount, relayCandidateCount };
+    environmentProbeCache = { atMs: Date.now(), result };
+    return result;
+  } finally {
+    probePc.close();
+  }
+}
 
 async function toBytes(data: string | Blob | ArrayBuffer): Promise<Uint8Array> {
   if (typeof data === "string") {
@@ -4405,7 +4473,10 @@ export class GfnWebRtcClient {
     }
 
     const rtcConfig: RTCConfiguration = {
-      iceServers: toRtcIceServers(session.iceServers),
+      iceServers: [
+        ...toRtcIceServers(session.iceServers),
+        ...(this.options.extraIceServers ?? []),
+      ],
       bundlePolicy: "max-bundle",
       rtcpMuxPolicy: "require",
     };
@@ -4427,7 +4498,6 @@ export class GfnWebRtcClient {
     const queuedLocalIce: IceCandidatePayload[] = [];
     const sentLocalCandidates = new Set<string>();
     let localCandidateCount = 0;
-    let fallbackRelayTried = false;
     const sendLocalIce = (candidate: IceCandidatePayload): void => {
       sentLocalCandidates.add(candidate.candidate);
       localCandidateCount += 1;
@@ -4461,29 +4531,14 @@ export class GfnWebRtcClient {
       this.log(`Local ICE candidates gathered: ${localCandidateCount}`);
       if (localCandidateCount > 0) return;
 
-      if (!fallbackRelayTried) {
-        // Zero candidates means the browser could not open ANY local UDP path
-        // (firewall, VPN, antivirus or a "WebRTC protection" extension). Give
-        // it one more chance with public TURN relays reachable over TCP 443,
-        // which produce relay candidates even when local UDP is blocked.
-        fallbackRelayTried = true;
-        this.log("No local ICE candidates gathered — retrying with fallback TURN relays (TCP/TLS 443)…");
-        try {
-          const current = pc.getConfiguration();
-          pc.setConfiguration({
-            ...current,
-            iceServers: [...(current.iceServers ?? []), ...FALLBACK_RELAY_ICE_SERVERS],
-          });
-          pc.restartIce();
-        } catch (error) {
-          this.log(`Fallback relay retry failed: ${String(error)}`);
-        }
-        return;
-      }
-
+      // Zero candidates mean the browser could not open ANY local UDP path
+      // (firewall, VPN, antivirus or a "WebRTC protection" extension). ICE
+      // restart cannot help mid-session as the answerer (the remote ice-lite
+      // agent keeps the original credentials), so fail fast — the pre-launch
+      // probe plus relay mode exist to prevent ever reaching this.
       this.log(
-        "WARNING: browser still gathered 0 ICE candidates after fallback retry. " +
-          "WebRTC is blocked by the browser/network (VPN, firewall, antivirus or extension). The stream cannot connect like this.",
+        "WARNING: browser gathered 0 ICE candidates. WebRTC is blocked by the browser/network " +
+          "(VPN, firewall, antivirus or extension). The stream cannot connect like this.",
       );
       this.options.onGatheringBlocked?.();
     };

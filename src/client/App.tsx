@@ -32,7 +32,7 @@ import {
   resolveEntitledStreamProfile,
   SAFE_FALLBACK_STREAM_PROFILE,
 } from "@shared/gfn";
-import { GfnWebRtcClient } from "./platforms/gfn/webrtcClient";
+import { FALLBACK_RELAY_ICE_SERVERS, GfnWebRtcClient, probeWebRtcEnvironment } from "./platforms/gfn/webrtcClient";
 import { clientLog } from "./api";
 import { formatShortcutForDisplay, isShortcutMatch, normalizeShortcut } from "./shortcuts";
 import { dispatchStreamShortcutAction } from "./streamShortcutActions";
@@ -260,6 +260,9 @@ export function App(): JSX.Element {
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [streamStatus, setStreamStatus] = useState<StreamStatus>("idle");
   const [showStatsOverlay, setShowStatsOverlay] = useState(false);
+  // Turn relays for the WebRTC client when the environment probe finds local
+  // candidate gathering is blocked (VPN/firewall/AV). undefined = normal mode.
+  const webrtcExtraIceServersRef = useRef<RTCIceServer[] | undefined>(undefined);
   const [antiAfkEnabled, setAntiAfkEnabled] = useState(false);
   const [antiAfkAckNonce, setAntiAfkAckNonce] = useState(0);
   const [nativeInputCaptureActive, setNativeInputCaptureActive] = useState(false);
@@ -2072,6 +2075,7 @@ export function App(): JSX.Element {
           console.log(`[WebRTC] ${line}`);
           clientLog(`[WebRTC] ${line}`);
         },
+        extraIceServers: webrtcExtraIceServersRef.current,
         onStats: (stats) => diagnosticsStore.set(stats),
         onTimeWarning: (warning) => {
           setRemoteStreamWarning({
@@ -2691,6 +2695,33 @@ export function App(): JSX.Element {
             console.warn("[Launch] Failed to stop leftover queued session:", leftover.sessionId, error);
           }
         }
+      }
+
+      // Probe the browser's WebRTC environment BEFORE creating a GFN session.
+      // Zero candidates means the browser cannot open any UDP socket (VPN,
+      // firewall, antivirus or extension) — launching would just burn a queue
+      // slot and fail at ICE 30 seconds later. When local gathering is blocked
+      // but TURN relays work, switch the session into relay mode instead.
+      try {
+        const probe = await probeWebRtcEnvironment();
+        console.log("[Launch] WebRTC environment probe:", probe);
+        if (probe.localCandidateCount === 0 && probe.relayCandidateCount === 0) {
+          setLaunchError({
+            stage: "queue",
+            title: t("errors.webrtcBlockedTitle"),
+            description: t("errors.webrtcBlockedDescription"),
+          });
+          resetLaunchRuntime({ keepLaunchError: true, keepStreamingContext: true });
+          launchInFlightRef.current = false;
+          return;
+        }
+        webrtcExtraIceServersRef.current =
+          probe.localCandidateCount === 0 && probe.relayCandidateCount > 0
+            ? FALLBACK_RELAY_ICE_SERVERS
+            : undefined;
+      } catch (probeError) {
+        console.warn("[Launch] WebRTC environment probe failed; continuing without it.", probeError);
+        webrtcExtraIceServersRef.current = undefined;
       }
 
       const sessionProxyUrl = activeSessionProxyUrl;
