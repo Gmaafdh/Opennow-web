@@ -128,10 +128,19 @@ const updaterState = {
 
 const REGION_PING_CONCURRENCY = 6;
 const REGION_PING_TIMEOUT_MS = 6_000;
+/**
+ * Probes per region. The first request on a cold connection pays DNS + TCP +
+ * TLS setup, which inflates the measurement to several round trips (a ~30ms
+ * link reports ~175ms). Warm the connection up, discard that sample, then
+ * time keep-alive requests — each reuses the established connection and
+ * measures roughly one network round trip.
+ */
+const REGION_PING_WARMUP_PROBES = 1;
+const REGION_PING_SAMPLE_PROBES = 3;
 
-async function measureRegionLatency(url: string): Promise<PingResult> {
+async function probeRegionLatencyOnce(url: string, timeoutMs: number): Promise<number> {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), REGION_PING_TIMEOUT_MS);
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const target = new URL(url);
@@ -150,19 +159,43 @@ async function measureRegionLatency(url: string): Promise<PingResult> {
       signal: controller.signal,
     });
 
-    return {
-      url,
-      pingMs: Math.max(1, Math.round(performance.now() - startedAt)),
-    };
-  } catch (error) {
-    return {
-      url,
-      pingMs: null,
-      error: error instanceof Error ? error.message : "Region latency check failed.",
-    };
+    return performance.now() - startedAt;
   } finally {
     window.clearTimeout(timeout);
   }
+}
+
+async function measureRegionLatency(url: string): Promise<PingResult> {
+  const samples: number[] = [];
+  let lastError: unknown = null;
+
+  for (let probe = 0; probe < REGION_PING_WARMUP_PROBES + REGION_PING_SAMPLE_PROBES; probe += 1) {
+    try {
+      samples.push(await probeRegionLatencyOnce(url, REGION_PING_TIMEOUT_MS));
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (samples.length === 0) {
+    return {
+      url,
+      pingMs: null,
+      error: lastError instanceof Error ? lastError.message : "Region latency check failed.",
+    };
+  }
+
+  // Drop the cold-connection sample whenever at least one keep-alive
+  // sample succeeded, and report the fastest probe (jitter only adds time).
+  const timedSamples = samples.length > REGION_PING_WARMUP_PROBES
+    ? samples.slice(REGION_PING_WARMUP_PROBES)
+    : samples;
+  const bestSample = Math.min(...timedSamples);
+
+  return {
+    url,
+    pingMs: Math.max(1, Math.round(bestSample)),
+  };
 }
 
 async function pingRegionsInBrowser(regions: Parameters<OpenNowApi["pingRegions"]>[0]): Promise<PingResult[]> {

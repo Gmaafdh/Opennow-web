@@ -6,6 +6,7 @@ import { resolveLaunchAppId, resolveStoreUrl } from "./gfn/gameAppMapper";
 import { fetchLibraryGamesUncached, markGameOwned } from "./gfn/libraryGames";
 import { fetchPublicGamesUncached } from "./gfn/publicGames";
 import { claimSession, createSession, getActiveSessions, pollSession, reportSessionAd, stopSession } from "./gfn/cloudmatch";
+import { resolveClientStreamingBaseUrl } from "./gfn/cloudmatchTransport";
 import { fetchSubscription } from "./gfn/subscription";
 import { getLoginProviders } from "./webAuth";
 import { getSession } from "./sessionStore";
@@ -163,7 +164,14 @@ export function registerApi(app: Express): void {
       ...input,
       appId,
       token: auth.tokens.idToken ?? auth.tokens.accessToken,
-      streamingBaseUrl: auth.provider.streamingServiceUrl,
+      // Honor the zone the client selected (queue server selector or region
+      // setting) when it targets an NVIDIA GRID host. Forcing the provider
+      // default here routed every launch to the deployment's local region —
+      // e.g. picking Bulgaria while queued still created the session in India.
+      streamingBaseUrl: resolveClientStreamingBaseUrl(
+        request.body?.streamingBaseUrl,
+        auth.provider.streamingServiceUrl,
+      ),
       internalTitle: String(input.internalTitle || appId),
       settings: { ...input.settings, clientMode: "web", transportMode: "webrtc" },
     });

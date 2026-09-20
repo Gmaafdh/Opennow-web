@@ -119,6 +119,32 @@ export function isDefaultStreamingServiceBase(baseUrl: string): boolean {
   }
 }
 
+/** True when a URL is a secure endpoint on an NVIDIA GRID host. */
+export function isNvidiaGridBaseUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") return false;
+    const hostname = parsed.hostname.toLowerCase();
+    return hostname === "nvidiagrid.net" || hostname.endsWith(".nvidiagrid.net");
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Resolve a client-supplied streaming base URL (e.g. a zone picked in the
+ * queue server selector or the region chosen in settings). Only NVIDIA GRID
+ * hosts are honored so browser input can never point server-side session
+ * calls at an arbitrary host; anything else falls back to the provider
+ * default.
+ */
+export function resolveClientStreamingBaseUrl(requested: unknown, fallback: string): string {
+  if (typeof requested !== "string") return fallback;
+  const trimmed = requested.trim();
+  if (!trimmed || !isNvidiaGridBaseUrl(trimmed)) return fallback;
+  return normalizeCloudMatchBaseUrl(trimmed);
+}
+
 export async function resolveCreateSessionBase(
   base: string,
   token: string,
