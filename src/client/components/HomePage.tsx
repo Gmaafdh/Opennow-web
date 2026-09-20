@@ -1,4 +1,4 @@
-import { Search, LayoutGrid, ArrowUpDown, Filter, ChevronDown, ChevronRight, Gamepad2, Menu, Play, Info } from "lucide-react";
+import { Search, LayoutGrid, ArrowUpDown, Filter, ChevronDown, ChevronRight, Gamepad2, Menu, Play } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { JSX } from "react";
 import { AnimatePresence, m } from "motion/react";
@@ -829,10 +829,6 @@ export const HomePage = memo(function HomePage({
                       <Play size={16} fill="currentColor" />
                       <span>Start</span>
                       <kbd>Enter</kbd>
-                    </button>
-                    <button type="button" className="home-hero-details" onClick={() => onSelectGame(heroGame.id)}>
-                      <Info size={15} />
-                      <span>Details</span>
                     </button>
                     {streamMetaLabel && (
                       <span className="home-hero-stats">

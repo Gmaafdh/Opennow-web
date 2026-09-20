@@ -1,5 +1,5 @@
 import type { AuthUser } from "@shared/gfn";
-import { House, Library, ShoppingBag, Users, Settings, Gamepad2, PanelsTopLeft, User } from "lucide-react";
+import { House, Library, Settings, PanelsTopLeft, User } from "lucide-react";
 import type { JSX, Ref } from "react";
 import { useTranslation } from "../i18n";
 import { OpenNowLogoMark } from "./OpenNowLogoMark";
@@ -24,8 +24,6 @@ export function SideRail({ currentPage, onNavigate, user, onOpenAccount, avatarR
   }> = [
     { id: "home", label: t("navigation.home"), icon: House, page: "home" },
     { id: "library", label: t("navigation.library"), icon: Library, page: "library" },
-    { id: "store", label: "Store", icon: ShoppingBag, page: "home" },
-    { id: "friends", label: "Friends", icon: Users, disabled: true },
     { id: "settings", label: t("navigation.settings"), icon: Settings, page: "settings" },
   ];
 
@@ -51,7 +49,7 @@ export function SideRail({ currentPage, onNavigate, user, onOpenAccount, avatarR
         <nav className="side-rail-nav">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = !item.disabled && item.page !== undefined && currentPage === item.page && item.id !== "store";
+            const isActive = !item.disabled && item.page !== undefined && currentPage === item.page;
             return (
               <button
                 key={item.id}
@@ -75,9 +73,6 @@ export function SideRail({ currentPage, onNavigate, user, onOpenAccount, avatarR
       </div>
 
       <div className="side-rail-bottom">
-        <button type="button" className="side-rail-item side-rail-item--ghost" aria-label="Controller mode" title="Controller mode" disabled>
-          <Gamepad2 size={20} />
-        </button>
         <button
           type="button"
           ref={avatarRef}

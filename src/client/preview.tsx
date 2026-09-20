@@ -10,6 +10,7 @@ import { StatusBar } from "./components/StatusBar";
 import { AccountMenu } from "./components/AccountMenu";
 import { HomePage } from "./components/HomePage";
 import { LibraryPage } from "./components/LibraryPage";
+import { StreamLoading } from "./components/StreamLoading";
 
 // Portrait box art via Steam's library_600x900 capsule (real posters).
 const cap = (appId: number) => `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`;
@@ -101,6 +102,7 @@ function PreviewApp() {
   const [selectedId, setSelectedId] = useState("1091500");
   const [sortId, setSortId] = useState("last_played");
   const [accountOpen, setAccountOpen] = useState(false);
+  const [loadingDemo, setLoadingDemo] = useState<null | "queue" | "setup" | "connecting">(null);
   const anchorRef = useRef<HTMLElement | null>(null);
 
   const filtered = useMemo(() => {
@@ -226,6 +228,36 @@ function PreviewApp() {
         </main>
         <StatusBar />
       </div>
+
+      {/* Connecting-screen demo controls */}
+      <div style={{ position: "fixed", top: 14, right: 18, zIndex: 3000, display: "flex", gap: 8 }}>
+        {(["queue", "setup", "connecting"] as const).map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setLoadingDemo(s)}
+            style={{
+              height: 30, padding: "0 12px", borderRadius: 999, cursor: "pointer",
+              border: "1px solid rgba(255,255,255,0.16)", background: "rgba(20,22,26,0.8)",
+              color: "#fff", fontSize: 12, fontWeight: 700, fontFamily: "inherit", textTransform: "capitalize",
+            }}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+
+      {loadingDemo && (
+        <StreamLoading
+          gameTitle="Cyberpunk 2077"
+          gameCover={cap(1091500)}
+          platformStore="STEAM"
+          status={loadingDemo}
+          queuePosition={loadingDemo === "queue" ? 42 : undefined}
+          estimatedWait={loadingDemo === "queue" ? "3 min" : undefined}
+          onCancel={() => setLoadingDemo(null)}
+        />
+      )}
     </div>
   );
 }
