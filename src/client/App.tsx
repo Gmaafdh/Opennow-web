@@ -107,7 +107,10 @@ import { useTranslation } from "./i18n";
 
 // UI Components
 import { LoginScreen } from "./components/LoginScreen";
-import { Navbar } from "./components/Navbar";
+import { SideRail } from "./components/SideRail";
+import { TopHeader } from "./components/TopHeader";
+import { StatusBar } from "./components/StatusBar";
+import { AccountMenu } from "./components/AccountMenu";
 import { HomePage } from "./components/HomePage";
 import { LibraryPage } from "./components/LibraryPage";
 import { PageErrorBoundary } from "./components/PageErrorBoundary";
@@ -167,6 +170,8 @@ export function App(): JSX.Element {
 
   // Navigation
   const [currentPage, setCurrentPage] = useState<AppPage>("home");
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountAnchorRef = useRef<HTMLElement | null>(null);
   const [pageBeforeSettings, setPageBeforeSettings] = useState<AppPage>("home");
   const [settingsMounted, setSettingsMounted] = useState(false);
   const [sessionFullscreen, setSessionFullscreenState] = useState(false);
@@ -3918,8 +3923,20 @@ export function App(): JSX.Element {
 
   // Main app layout
   const showCatalogAtmosphere = currentPage === "home" || currentPage === "library";
+
+  // Shell header metadata for the new layout.
+  const shellTitle = mainPage === "home" ? t("navigation.home") : mainPage === "library" ? t("library.title") : t("navigation.settings");
+  const shellCount = libraryGames.length > 0 ? libraryGames.length : catalogTotalCount;
+  const shellCountLabel = shellCount > 0 ? t("library.gameCount", { count: shellCount }) : "";
+  const shellSearchPlaceholder = mainPage === "library" ? t("library.searchPlaceholder") : t("home.searchPlaceholder");
+  const resolutionShort = ((): string => {
+    const [, h] = settings.resolution.split("x");
+    return h ? `${h}p` : settings.resolution;
+  })();
+  const streamMetaLabel = `${resolutionShort} · ${settings.fps} fps · ${settings.codec.replace(/^H/, "H.")}`;
+
   return (
-    <div className={`app-container${effectiveControllerMode ? " app-container--controller" : ""}${showCatalogAtmosphere ? " app-container--atmosphere" : ""}`} style={getAppStyle(settings.posterSizeScale)}>
+    <div className={`app-container app-shell${effectiveControllerMode ? " app-container--controller" : ""}${showCatalogAtmosphere ? " app-container--atmosphere" : ""}`} style={getAppStyle(settings.posterSizeScale)}>
       {showCatalogAtmosphere && <LazyShaderAtmosphere variant="controller" className="catalog-atmosphere" />}
       <AnimatePresence>
         {startupRefreshNotice && (
@@ -3943,9 +3960,18 @@ export function App(): JSX.Element {
           </m.div>
         )}
       </AnimatePresence>
-      <Navbar
+      <SideRail
         currentPage={currentPage}
         onNavigate={handleNavigate}
+        user={authSession.user}
+        onOpenAccount={() => setAccountMenuOpen((open) => !open)}
+        avatarRef={accountAnchorRef as React.Ref<HTMLButtonElement>}
+      />
+
+      <AccountMenu
+        open={accountMenuOpen}
+        onClose={() => setAccountMenuOpen(false)}
+        anchorRef={accountAnchorRef}
         user={authSession.user}
         subscription={subscriptionInfo}
         activeSession={navbarActiveSession}
@@ -3965,10 +3991,19 @@ export function App(): JSX.Element {
         }}
         onAddAccount={handleAddAccount}
         onLogoutAll={handleLogout}
-        controllerMode={effectiveControllerMode}
       />
 
-      <main className="main-content">
+      <div className="app-shell-main">
+        <TopHeader
+          title={shellTitle}
+          count={shellCount}
+          countLabel={shellCountLabel}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder={shellSearchPlaceholder}
+        />
+
+        <main className="main-content">
         <PageErrorBoundary label="main">
         <AnimatePresence mode="wait" initial={false}>
           <m.div
@@ -4007,6 +4042,11 @@ export function App(): JSX.Element {
                 markOwnedInFlightByVariantId={markOwnedInFlightByVariantId}
                 onPreviousControllerPage={() => navigateControllerPage(-1)}
                 onNextControllerPage={() => navigateControllerPage(1)}
+                libraryGames={libraryGames}
+                playtimeData={playtime}
+                favoriteGameIds={settings.favoriteGameIds}
+                streamMetaLabel={streamMetaLabel}
+                onNavigateLibrary={() => handleNavigate("library")}
               />
             )}
 
@@ -4040,7 +4080,10 @@ export function App(): JSX.Element {
           </m.div>
         </AnimatePresence>
         </PageErrorBoundary>
-      </main>
+        </main>
+
+        <StatusBar regionLabel="Auto region" themeLabel="Nocturne theme" />
+      </div>
       <SettingsModalHost
         open={currentPage === "settings"}
         onClose={handleCloseSettings}
