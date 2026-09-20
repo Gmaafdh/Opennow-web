@@ -11,7 +11,7 @@ export interface BootstrapData {
   subscription: SubscriptionInfo | null;
 }
 
-export interface QrChallenge {
+export interface DeviceLoginChallengePayload {
   attemptId: string;
   userCode: string;
   verificationUri: string;
@@ -20,7 +20,7 @@ export interface QrChallenge {
   intervalSeconds: number;
 }
 
-export interface QrPollResult {
+export interface DeviceLoginPollPayload {
   status: "pending" | "slow_down" | "expired" | "access_denied" | "authorized" | "error";
   session?: BrowserSession;
   error?: string;

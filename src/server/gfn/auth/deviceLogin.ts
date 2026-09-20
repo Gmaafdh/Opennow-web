@@ -74,7 +74,7 @@ export async function requestDeviceAuthorization(
     !payload.verification_uri ||
     !payload.verification_uri_complete
   ) {
-    throw new Error("Device authorization response did not include QR login data");
+    throw new Error("Device authorization response did not include sign-in link data");
   }
 
   return {

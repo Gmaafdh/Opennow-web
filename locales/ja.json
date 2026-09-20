@@ -93,8 +93,33 @@
     },
     "actions": {
       "signIn": "サインイン",
+      "signInWithLink": "リンクでサインイン",
+      "cancelDeviceLogin": "サインインをキャンセル",
       "connecting": "接続中...",
       "restoringSession": "セッションを復元中..."
+    },
+    "link": {
+      "title": "サインインリンクを開く",
+      "preparing": "サインインを準備中",
+      "preparingDescription": "NVIDIAのサインインリンクをリクエストしています...",
+      "description": "新しいタブでNVIDIAのサインインページを開き、リクエストを承認してください。OpenNOWは自動的に続行します。",
+      "open": "NVIDIAサインインを開く",
+      "openAgain": "サインインページを開き直す",
+      "waiting": "サインインリクエストの承認を待っています...",
+      "codeLabel": "確認コード",
+      "codeHint": "NVIDIAのページで求められた場合は、このコードを入力してください。",
+      "copyCode": "コードをコピー",
+      "copied": "コピーしました",
+      "expiresIn": "リンクの有効期限: {{time}}",
+      "expired": "サインインリンクの有効期限が切れました。もう一度開始して新しいリンクを取得してください。",
+      "manualUrl": "または、このアドレスを手動で開く",
+      "showQr": "QRコードを表示",
+      "hideQr": "QRコードを隠す"
+    },
+    "qr": {
+      "title": "スキャンしてサインイン",
+      "description": "スマートフォンでスキャンし、サインインリクエストを承認してください。OpenNOWは自動的に続行します。",
+      "alt": "サインイン用QRコード"
     },
     "accounts": {
       "activeAccount": "アクティブなアカウント",

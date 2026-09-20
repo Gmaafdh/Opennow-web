@@ -466,7 +466,7 @@ export function App(): JSX.Element {
     activeLoginMode,
     loginError,
     setLoginError,
-    qrLoginChallenge,
+    deviceLoginChallenge,
     isInitializing,
     startupStatusMessage,
     startupRefreshNotice,
@@ -475,8 +475,8 @@ export function App(): JSX.Element {
     logoutConfirmOpen,
     setLogoutConfirmOpen,
     selectedProvider,
-    handleQrLogin,
-    handleCancelQrLogin,
+    handleStartDeviceLogin,
+    handleCancelDeviceLogin,
     handleSwitchAccount,
     handleRemoveAccount,
     confirmRemoveAccount,
@@ -3592,14 +3592,14 @@ export function App(): JSX.Element {
           providers={providers}
           selectedProviderId={providerIdpId}
           onProviderChange={setProviderIdpId}
-          onQrLogin={handleQrLogin}
-          onCancelQrLogin={handleCancelQrLogin}
+          onStartDeviceLogin={handleStartDeviceLogin}
+          onCancelDeviceLogin={handleCancelDeviceLogin}
           isLoading={isLoggingIn}
           error={loginError}
           isInitializing={isInitializing}
           statusMessage={startupStatusMessage}
-          qrLoginChallenge={qrLoginChallenge}
-          isQrLoginPending={activeLoginMode === "qr" && !qrLoginChallenge}
+          deviceLoginChallenge={deviceLoginChallenge}
+          isDeviceLoginPending={activeLoginMode === "device" && !deviceLoginChallenge}
         />
         {releaseHighlightsPayload && (
           <ReleaseHighlightsModal

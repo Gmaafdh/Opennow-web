@@ -93,8 +93,33 @@
     },
     "actions": {
       "signIn": "Conectați-vă",
+      "signInWithLink": "Conectați-vă cu un link",
+      "cancelDeviceLogin": "Anulați conectarea",
       "connecting": "Se conectează...",
       "restoringSession": "Se restabilește sesiunea..."
+    },
+    "link": {
+      "title": "Deschideți linkul de conectare",
+      "preparing": "Se pregătește conectarea",
+      "preparingDescription": "Se solicită linkul de conectare NVIDIA...",
+      "description": "Deschideți pagina de conectare NVIDIA într-o filă nouă și aprobați cererea. OpenNOW continuă automat.",
+      "open": "Deschideți conectarea NVIDIA",
+      "openAgain": "Redeschideți pagina de conectare",
+      "waiting": "Se așteaptă aprobarea cererii de conectare...",
+      "codeLabel": "Cod de confirmare",
+      "codeHint": "Introduceți acest cod pe pagina NVIDIA dacă vi se cere.",
+      "copyCode": "Copiați codul",
+      "copied": "Copiat",
+      "expiresIn": "Linkul expiră în {{time}}",
+      "expired": "Linkul de conectare a expirat. Începeți din nou pentru a obține unul nou.",
+      "manualUrl": "Sau deschideți manual această adresă",
+      "showQr": "Afișați codul QR",
+      "hideQr": "Ascundeți codul QR"
+    },
+    "qr": {
+      "title": "Scanați pentru a vă conecta",
+      "description": "Scanați cu telefonul, apoi aprobați cererea de conectare. OpenNOW continuă automat.",
+      "alt": "Cod QR de conectare"
     },
     "accounts": {
       "activeAccount": "Cont activ",

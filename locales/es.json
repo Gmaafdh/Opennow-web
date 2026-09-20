@@ -93,8 +93,33 @@
     },
     "actions": {
       "signIn": "Iniciar sesión",
+      "signInWithLink": "Iniciar sesión con un enlace",
+      "cancelDeviceLogin": "Cancelar el inicio de sesión",
       "connecting": "Conectando...",
       "restoringSession": "Restaurando sesión..."
+    },
+    "link": {
+      "title": "Abre el enlace de inicio de sesión",
+      "preparing": "Preparando el inicio de sesión",
+      "preparingDescription": "Solicitando tu enlace de inicio de sesión de NVIDIA...",
+      "description": "Abre la página de inicio de sesión de NVIDIA en una pestaña nueva y aprueba la solicitud. OpenNOW continuará automáticamente.",
+      "open": "Abrir el inicio de sesión de NVIDIA",
+      "openAgain": "Volver a abrir la página",
+      "waiting": "Esperando a que apruebes la solicitud...",
+      "codeLabel": "Código de confirmación",
+      "codeHint": "Introduce este código en la página de NVIDIA si te lo pide.",
+      "copyCode": "Copiar código",
+      "copied": "Copiado",
+      "expiresIn": "El enlace caduca en {{time}}",
+      "expired": "El enlace de inicio de sesión caducó. Vuelve a empezar para obtener uno nuevo.",
+      "manualUrl": "O abre esta dirección manualmente",
+      "showQr": "Mostrar código QR",
+      "hideQr": "Ocultar código QR"
+    },
+    "qr": {
+      "title": "Escanea para iniciar sesión",
+      "description": "Escanea con tu teléfono y aprueba la solicitud. OpenNOW continuará automáticamente.",
+      "alt": "Código QR de inicio de sesión"
     },
     "accounts": {
       "activeAccount": "cuenta activa",

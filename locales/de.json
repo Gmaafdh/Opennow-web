@@ -93,8 +93,33 @@
     },
     "actions": {
       "signIn": "Anmelden",
+      "signInWithLink": "Mit einem Link anmelden",
+      "cancelDeviceLogin": "Anmeldung abbrechen",
       "connecting": "Verbinden...",
       "restoringSession": "Sitzung wird wiederhergestellt..."
+    },
+    "link": {
+      "title": "Anmeldelink öffnen",
+      "preparing": "Anmeldung wird vorbereitet",
+      "preparingDescription": "Ihr NVIDIA-Anmeldelink wird angefordert...",
+      "description": "Öffnen Sie die NVIDIA-Anmeldeseite in einem neuen Tab und bestätigen Sie die Anfrage. OpenNOW fährt automatisch fort.",
+      "open": "NVIDIA-Anmeldung öffnen",
+      "openAgain": "Anmeldeseite erneut öffnen",
+      "waiting": "Warten auf Ihre Bestätigung der Anmeldung...",
+      "codeLabel": "Bestätigungscode",
+      "codeHint": "Geben Sie diesen Code auf der NVIDIA-Seite ein, falls danach gefragt wird.",
+      "copyCode": "Code kopieren",
+      "copied": "Kopiert",
+      "expiresIn": "Link läuft in {{time}} ab",
+      "expired": "Anmeldelink abgelaufen. Starten Sie erneut, um einen neuen zu erhalten.",
+      "manualUrl": "Oder öffnen Sie diese Adresse manuell",
+      "showQr": "QR-Code anzeigen",
+      "hideQr": "QR-Code ausblenden"
+    },
+    "qr": {
+      "title": "Zum Anmelden scannen",
+      "description": "Scannen Sie den Code mit Ihrem Telefon und bestätigen Sie die Anfrage. OpenNOW fährt automatisch fort.",
+      "alt": "Anmelde-QR-Code"
     },
     "accounts": {
       "activeAccount": "Aktives Konto",
