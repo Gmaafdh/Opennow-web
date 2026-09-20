@@ -180,209 +180,196 @@ export function StreamLoading({
         <LazyShaderAtmosphere variant={isQueue ? "queue" : "connecting"} className="gload-shader" />
       )}
       <div className="gload-vignette" />
+      <div className="gload-grain" aria-hidden="true" />
 
-      <m.div
-        className="gload-card"
-        initial={{ opacity: 0, y: 24, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <div className="gload-card-glow" aria-hidden="true" />
+      {/* Top bar */}
+      <div className="gload-topbar">
+        <div className="gload-brand">
+          <span className={`gload-brand-dot${hasError ? " gload-brand-dot--error" : ""}`} />
+          <span className="gload-brand-text">
+            {hasError ? t("streamLoading.labels.launchError") : t("streamLoading.labels.nowLoading")}
+          </span>
+        </div>
+        <button
+          type="button"
+          className="gload-close"
+          onClick={onCancel}
+          aria-label={t("streamLoading.actions.cancelLoading")}
+        >
+          <X size={18} />
+        </button>
+      </div>
 
-        <div className="gload-hero">
-          <div className="gload-cover">
+      {/* Main stage — big poster + info */}
+      <div className="gload-stage">
+        <m.div
+          className="gload-poster-wrap"
+          initial={{ opacity: 0, scale: 0.94, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <div className="gload-poster-halo" aria-hidden="true" />
+          <div className="gload-poster">
             {gameCover ? (
-              <img src={gameCover} alt="" className="gload-cover-img" />
+              <img src={gameCover} alt="" className="gload-poster-img" />
             ) : (
-              <div className="gload-cover-empty"><Monitor size={30} /></div>
+              <div className="gload-poster-empty"><Monitor size={64} /></div>
             )}
             {!hasError && (
               <m.span
-                className="gload-cover-sheen"
+                className="gload-poster-sheen"
                 aria-hidden="true"
-                animate={{ x: ["-120%", "220%"] }}
-                transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.4 }}
+                animate={{ x: ["-130%", "230%"] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.6 }}
               />
             )}
+            <div className="gload-poster-reflection" aria-hidden="true" />
+          </div>
+        </m.div>
+
+        <m.div
+          className="gload-info"
+          initial={{ opacity: 0, x: 26 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1], delay: 0.08 }}
+        >
+          <span className={`gload-eyebrow${hasError ? " gload-eyebrow--error" : ""}`}>
+            {hasError ? t("streamLoading.labels.launchError") : t("streamLoading.labels.nowLoading")}
+          </span>
+          <h1 className="gload-title" title={gameTitle}>{gameTitle}</h1>
+
+          <div className="gload-tags">
+            {PlatformIcon && (
+              <span className="gload-tag" title={platformName}>
+                <span className="gload-tag-icon"><PlatformIcon /></span>
+                <span>{platformName}</span>
+              </span>
+            )}
+            <span className="gload-tag">
+              <Gauge size={14} />
+              <span>{formatWaitTime(elapsedSeconds)}</span>
+            </span>
+            {isQueue && queuePosition ? (
+              <span className="gload-tag gload-tag--accent">
+                <Radio size={14} />
+                <span>{t("streamLoading.telemetry.queuePosition")} #{queuePosition}</span>
+              </span>
+            ) : null}
           </div>
 
-          <div className="gload-hero-meta">
-            <span className={`gload-eyebrow${hasError ? " gload-eyebrow--error" : ""}`}>
-              {hasError ? t("streamLoading.labels.launchError") : t("streamLoading.labels.nowLoading")}
-            </span>
-            <h1 className="gload-title" title={gameTitle}>{gameTitle}</h1>
-            {PlatformIcon && (
-              <div className="gload-platform" title={platformName}>
-                <span className="gload-platform-icon"><PlatformIcon /></span>
-                <span>{platformName}</span>
-              </div>
+          <div className={`gload-status${hasError ? " gload-status--error" : ""}`}>
+            {hasError ? (
+              <XCircle size={20} className="gload-status-icon" />
+            ) : (
+              <m.span
+                className="gload-live-dot"
+                aria-hidden="true"
+                animate={{ opacity: [0.5, 1, 0.5], scale: [0.85, 1.15, 0.85] }}
+                transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+              />
             )}
-
-            <div className={`gload-status${hasError ? " gload-status--error" : ""}`}>
-              {hasError ? (
-                <XCircle size={18} className="gload-status-icon" />
-              ) : (
-                <m.span
-                  className="gload-live-dot"
-                  aria-hidden="true"
-                  animate={{ opacity: [0.5, 1, 0.5], scale: [0.85, 1.15, 0.85] }}
-                  transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
-                />
+            <div className="gload-status-text">
+              <p className="gload-message" role="status" aria-live="polite">{statusMessage}</p>
+              {!hasError && <p className="gload-detail">{getPhaseDetail(t, status)}</p>}
+              {hasError && error && (
+                <>
+                  <p className="gload-error-desc">{error.description}</p>
+                  {error.code && <span className="gload-error-code">{error.code}</span>}
+                </>
               )}
-              <div className="gload-status-text">
-                <p className="gload-message" role="status" aria-live="polite">{statusMessage}</p>
-                {!hasError && <p className="gload-detail">{getPhaseDetail(t, status)}</p>}
-                {hasError && error && (
-                  <>
-                    <p className="gload-error-desc">{error.description}</p>
-                    {error.code && <span className="gload-error-code">{error.code}</span>}
-                  </>
-                )}
-              </div>
             </div>
           </div>
 
-          {/* Progress ring / queue counter */}
+          {/* Progress bar */}
           {!hasError && (
-            <div className="gload-ring" aria-hidden="true">
-              <svg viewBox="0 0 120 120" className="gload-ring-svg">
-                <circle className="gload-ring-track" cx="60" cy="60" r="52" />
-                <m.circle
-                  className="gload-ring-fill"
-                  cx="60"
-                  cy="60"
-                  r="52"
-                  strokeDasharray={ringCircumference}
-                  initial={{ strokeDashoffset: ringCircumference }}
-                  animate={{ strokeDashoffset: ringCircumference * (1 - stageProgress) }}
+            <div className="gload-progress" aria-hidden="true">
+              <div className="gload-progress-head">
+                <span>{safeStageLabel(t, launchStages[Math.min(activeStage, 3)].id)}</span>
+                <span>{isQueue && queuePosition ? `#${queuePosition}` : `${Math.round(stageProgress * 100)}%`}</span>
+              </div>
+              <div className="gload-progress-track">
+                <m.span
+                  className="gload-progress-fill"
+                  initial={{ width: "0%" }}
+                  animate={{ width: `${stageProgress * 100}%` }}
                   transition={{ duration: 0.8, ease: "easeInOut" }}
                 />
-              </svg>
-              <div className="gload-ring-center">
-                {isQueue && queuePosition ? (
-                  <>
-                    <span className="gload-ring-num">#{queuePosition}</span>
-                    <span className="gload-ring-lbl">{t("streamLoading.telemetry.queuePosition")}</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="gload-ring-num">{Math.round(stageProgress * 100)}%</span>
-                    <span className="gload-ring-lbl">{safeStageLabel(t, launchStages[Math.min(activeStage, 3)].id)}</span>
-                  </>
-                )}
               </div>
             </div>
           )}
-        </div>
 
-        {/* Stage stepper */}
-        {!hasError && (
-          <div className="gload-steps" aria-label={t("streamLoading.labels.launchProgress")}>
-            {launchStages.map((stage, index) => {
-              const StageIcon = stage.icon;
-              const state = index < activeStage ? "completed" : index === activeStage ? "active" : "pending";
-              return (
-                <div className={`gload-step gload-step--${state}`} key={stage.id}>
-                  <m.span
-                    className="gload-step-icon"
-                    animate={state === "active" ? { scale: [1, 1.12, 1] } : { scale: 1 }}
-                    transition={state === "active"
-                      ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" }
-                      : { duration: 0.2 }}
-                  >
-                    {state === "completed" ? <Check size={16} /> : <StageIcon size={16} />}
-                  </m.span>
-                  <span className="gload-step-name">{safeStageLabel(t, stage.id)}</span>
-                  {index < launchStages.length - 1 && (
-                    <span className={`gload-step-line${index < activeStage ? " gload-step-line--done" : ""}`} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+          {/* Stage stepper */}
+          {!hasError && (
+            <div className="gload-steps" aria-label={t("streamLoading.labels.launchProgress")}>
+              {launchStages.map((stage, index) => {
+                const StageIcon = stage.icon;
+                const state = index < activeStage ? "completed" : index === activeStage ? "active" : "pending";
+                return (
+                  <div className={`gload-step gload-step--${state}`} key={stage.id}>
+                    <m.span
+                      className="gload-step-icon"
+                      animate={state === "active" ? { scale: [1, 1.12, 1] } : { scale: 1 }}
+                      transition={state === "active"
+                        ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" }
+                        : { duration: 0.2 }}
+                    >
+                      {state === "completed" ? <Check size={16} /> : <StageIcon size={16} />}
+                    </m.span>
+                    <span className="gload-step-name">{safeStageLabel(t, stage.id)}</span>
+                    {index < launchStages.length - 1 && (
+                      <span className={`gload-step-line${index < activeStage ? " gload-step-line--done" : ""}`} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
-        {/* Telemetry chips */}
-        {!hasError && (
-          <div className="gload-facts">
-            <div className="gload-fact">
-              <Radio size={15} className="gload-fact-icon" />
-              <div className="gload-fact-copy">
-                <small>{t("streamLoading.telemetry.queuePosition")}</small>
-                <strong>{isQueue && queuePosition ? `#${queuePosition}` : isQueue ? t("streamLoading.telemetry.calculating") : t("streamLoading.telemetry.cleared")}</strong>
-              </div>
-            </div>
-            <div className="gload-fact">
-              <Gauge size={15} className="gload-fact-icon" />
-              <div className="gload-fact-copy">
-                <small>{t("streamLoading.telemetry.elapsed")}</small>
-                <strong>{formatWaitTime(elapsedSeconds)}</strong>
-              </div>
-            </div>
-            {estimatedWait && isQueue ? (
-              <div className="gload-fact">
-                <Wifi size={15} className="gload-fact-icon" />
-                <div className="gload-fact-copy">
-                  <small>{t("streamLoading.cozy.next")}</small>
-                  <strong>~{estimatedWait}</strong>
+          {/* Ad preview */}
+          <AnimatePresence>
+            {!hasError && hasAd && (
+              <m.div
+                className={`gload-ad${isPaused ? " gload-ad--paused" : ""}`}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="gload-ad-copy">
+                  <span className="gload-ad-chip">{t("streamLoading.labels.adQueue")}</span>
+                  {adSummary && <p className="gload-ad-message">{adSummary}</p>}
                 </div>
-              </div>
-            ) : (
-              <div className="gload-fact">
-                <Wifi size={15} className="gload-fact-icon" />
-                <div className="gload-fact-copy">
-                  <small>{t("streamLoading.cozy.next")}</small>
-                  <strong>{safeStageLabel(t, launchStages[Math.min(activeStage + 1, 3)].id)}</strong>
+                <div className="gload-ad-media">
+                  <QueueAdPreview
+                    ref={adPreviewRef}
+                    mediaUrl={cachedAdMediaUrl ?? ""}
+                    title={activeAd!.title}
+                    onPlaybackEvent={(event) => onAdPlaybackEvent?.(event, activeAd!.adId)}
+                  />
                 </div>
-              </div>
+              </m.div>
             )}
-          </div>
-        )}
+          </AnimatePresence>
 
-        {/* Ad preview */}
-        <AnimatePresence>
-          {!hasError && hasAd && (
-            <m.div
-              className={`gload-ad${isPaused ? " gload-ad--paused" : ""}`}
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
+          {/* Actions */}
+          <div className="gload-actions">
+            {hasError && error?.actionLabel && onErrorAction && (
+              <button type="button" className="gload-btn gload-btn--primary" onClick={onErrorAction}>
+                <span>{error.actionLabel}</span>
+              </button>
+            )}
+            <button
+              type="button"
+              className="gload-btn gload-btn--ghost"
+              onClick={onCancel}
+              aria-label={t("streamLoading.actions.cancelLoading")}
             >
-              <div className="gload-ad-copy">
-                <span className="gload-ad-chip">{t("streamLoading.labels.adQueue")}</span>
-                {adSummary && <p className="gload-ad-message">{adSummary}</p>}
-              </div>
-              <div className="gload-ad-media">
-                <QueueAdPreview
-                  ref={adPreviewRef}
-                  mediaUrl={cachedAdMediaUrl ?? ""}
-                  title={activeAd!.title}
-                  onPlaybackEvent={(event) => onAdPlaybackEvent?.(event, activeAd!.adId)}
-                />
-              </div>
-            </m.div>
-          )}
-        </AnimatePresence>
-
-        {/* Actions */}
-        <div className="gload-actions">
-          {hasError && error?.actionLabel && onErrorAction && (
-            <button type="button" className="gload-btn gload-btn--primary" onClick={onErrorAction}>
-              <span>{error.actionLabel}</span>
+              <X size={15} />
+              <span>{hasError ? t("app.actions.close") : t("app.actions.cancel")}</span>
             </button>
-          )}
-          <button
-            type="button"
-            className="gload-btn gload-btn--ghost"
-            onClick={onCancel}
-            aria-label={t("streamLoading.actions.cancelLoading")}
-          >
-            <X size={15} />
-            <span>{hasError ? t("app.actions.close") : t("app.actions.cancel")}</span>
-          </button>
-        </div>
-      </m.div>
+          </div>
+        </m.div>
+      </div>
     </div>
   );
 }
