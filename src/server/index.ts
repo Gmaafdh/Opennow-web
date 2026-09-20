@@ -62,12 +62,30 @@ if (process.env.NODE_ENV === "production") {
 }
 
 app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
-  const status = typeof error === "object" && error && "statusCode" in error && typeof error.statusCode === "number"
+  // GFN SessionError.statusCode carries the CloudMatch app-level code (0-254),
+  // not an HTTP status — e.g. statusCode 69 ("Queue Abandoned") crashed this
+  // handler with "RangeError: Invalid status code", so the client never got a
+  // usable error at all. Only trust values in the real HTTP range and surface
+  // the GFN error details in the JSON body instead.
+  const rawStatus = typeof error === "object" && error && "statusCode" in error && typeof error.statusCode === "number"
     ? error.statusCode
-    : 500;
+    : NaN;
+  const detail = (typeof error === "object" && error ? error : {}) as {
+    gfnErrorCode?: unknown;
+    title?: unknown;
+    description?: unknown;
+  };
+  const isUpstreamGfnError = typeof detail.gfnErrorCode === "number";
+  const status = Number.isFinite(rawStatus) && rawStatus >= 100 && rawStatus <= 599
+    ? rawStatus
+    : isUpstreamGfnError ? 502 : 500;
   const message = error instanceof Error ? error.message : "Unexpected server error.";
+  const body: Record<string, unknown> = { error: message };
+  if (typeof detail.title === "string") body.title = detail.title;
+  if (typeof detail.description === "string") body.description = detail.description;
+  if (isUpstreamGfnError) body.gfnErrorCode = detail.gfnErrorCode;
   if (status >= 500) console.error("[Server]", error);
-  response.status(status).json({ error: message });
+  response.status(status).json(body);
 });
 
 await cacheManager.initialize();

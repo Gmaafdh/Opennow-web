@@ -31,8 +31,23 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     },
   });
   if (!response.ok) {
-    const payload = await response.json().catch(() => null) as { error?: string } | null;
-    throw new Error(payload?.error ?? `Request failed (${response.status})`);
+    const payload = await response.json().catch(() => null) as {
+      error?: string;
+      title?: string;
+      description?: string;
+      gfnErrorCode?: number;
+    } | null;
+    const error = new Error(payload?.error ?? `Request failed (${response.status})`) as Error & {
+      title?: string;
+      description?: string;
+      gfnErrorCode?: number;
+    };
+    // Surface GFN session error details so the launch error UI can show the
+    // real reason (e.g. "Queue Abandoned") instead of a generic failure.
+    if (payload?.title) error.title = payload.title;
+    if (payload?.description) error.description = payload.description;
+    if (typeof payload?.gfnErrorCode === "number") error.gfnErrorCode = payload.gfnErrorCode;
+    throw error;
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;

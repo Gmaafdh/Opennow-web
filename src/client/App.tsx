@@ -2684,16 +2684,37 @@ export function App(): JSX.Element {
           return;
         }
 
-        const polled = await window.openNow.pollSession({
-          token: token || undefined,
-          streamingBaseUrl: newSession.streamingBaseUrl ?? effectiveStreamingBaseUrl,
-          serverIp: newSession.serverIp,
-          zone: newSession.zone,
-          sessionId: newSession.sessionId,
-          clientId: newSession.clientId,
-          deviceId: newSession.deviceId,
-          proxyUrl: sessionProxyUrl,
-        });
+        // Tolerate transient poll failures (network blips, upstream 5xx) with
+        // a short bounded retry instead of failing the whole launch. Permanent
+        // session errors (e.g. GFN "Queue Abandoned") just cost a few seconds
+        // of retries before surfacing their real message.
+        let polled: SessionInfo | null = null;
+        let lastPollError: unknown = null;
+        for (let pollRetry = 0; pollRetry < 3; pollRetry += 1) {
+          try {
+            polled = await window.openNow.pollSession({
+              token: token || undefined,
+              streamingBaseUrl: newSession.streamingBaseUrl ?? effectiveStreamingBaseUrl,
+              serverIp: newSession.serverIp,
+              zone: newSession.zone,
+              sessionId: newSession.sessionId,
+              clientId: newSession.clientId,
+              deviceId: newSession.deviceId,
+              proxyUrl: sessionProxyUrl,
+            });
+            lastPollError = null;
+            break;
+          } catch (error) {
+            lastPollError = error;
+            if (launchAbortRef.current) return;
+            console.warn(`Session poll failed (attempt ${pollRetry + 1}/3):`, error);
+            await sleep(1500);
+            if (launchAbortRef.current) return;
+          }
+        }
+        if (lastPollError || !polled) {
+          throw lastPollError ?? new Error("Session polling failed.");
+        }
 
         if (launchAbortRef.current) {
           return;
