@@ -93,8 +93,33 @@
     },
     "actions": {
       "signIn": "登录",
+      "signInWithLink": "使用链接登录",
+      "cancelDeviceLogin": "取消登录",
       "connecting": "正在连接...",
       "restoringSession": "正在恢复会话..."
+    },
+    "link": {
+      "title": "打开登录链接",
+      "preparing": "正在准备登录",
+      "preparingDescription": "正在请求 NVIDIA 登录链接...",
+      "description": "在新标签页中打开 NVIDIA 登录页面并批准请求，OpenNOW 会自动继续。",
+      "open": "打开 NVIDIA 登录页面",
+      "openAgain": "重新打开登录页面",
+      "waiting": "正在等待你批准登录请求...",
+      "codeLabel": "确认码",
+      "codeHint": "如果 NVIDIA 页面要求，请输入此确认码。",
+      "copyCode": "复制确认码",
+      "copied": "已复制",
+      "expiresIn": "链接将在 {{time}} 后过期",
+      "expired": "登录链接已过期，请重新开始以获取新的链接。",
+      "manualUrl": "或手动打开此地址",
+      "showQr": "显示二维码",
+      "hideQr": "隐藏二维码"
+    },
+    "qr": {
+      "title": "扫码登录",
+      "description": "用手机扫码并批准登录请求，OpenNOW 会自动继续。",
+      "alt": "登录二维码"
     },
     "accounts": {
       "activeAccount": "活跃账户",

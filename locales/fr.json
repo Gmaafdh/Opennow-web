@@ -93,8 +93,33 @@
     },
     "actions": {
       "signIn": "Connectez-vous",
+      "signInWithLink": "Se connecter avec un lien",
+      "cancelDeviceLogin": "Annuler la connexion",
       "connecting": "Connexion...",
       "restoringSession": "Restauration de la session..."
+    },
+    "link": {
+      "title": "Ouvrez le lien de connexion",
+      "preparing": "Préparation de la connexion",
+      "preparingDescription": "Demande de votre lien de connexion NVIDIA...",
+      "description": "Ouvrez la page de connexion NVIDIA dans un nouvel onglet et approuvez la demande. OpenNOW continuera automatiquement.",
+      "open": "Ouvrir la connexion NVIDIA",
+      "openAgain": "Rouvrir la page de connexion",
+      "waiting": "En attente de votre approbation...",
+      "codeLabel": "Code de confirmation",
+      "codeHint": "Saisissez ce code sur la page NVIDIA si elle le demande.",
+      "copyCode": "Copier le code",
+      "copied": "Copié",
+      "expiresIn": "Le lien expire dans {{time}}",
+      "expired": "Le lien de connexion a expiré. Recommencez pour en obtenir un nouveau.",
+      "manualUrl": "Ou ouvrez cette adresse manuellement",
+      "showQr": "Afficher le code QR",
+      "hideQr": "Masquer le code QR"
+    },
+    "qr": {
+      "title": "Scannez pour vous connecter",
+      "description": "Scannez avec votre téléphone, puis approuvez la demande. OpenNOW continuera automatiquement.",
+      "alt": "Code QR de connexion"
     },
     "accounts": {
       "activeAccount": "Compte actif",

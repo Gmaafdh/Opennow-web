@@ -93,8 +93,33 @@
     },
     "actions": {
       "signIn": "Inloggen",
+      "signInWithLink": "Inloggen met een link",
+      "cancelDeviceLogin": "Inloggen annuleren",
       "connecting": "Verbinden...",
       "restoringSession": "Sessie herstellen..."
+    },
+    "link": {
+      "title": "Open de inloglink",
+      "preparing": "Inloggen voorbereiden",
+      "preparingDescription": "Je NVIDIA-inloglink wordt aangevraagd...",
+      "description": "Open de NVIDIA-inlogpagina in een nieuw tabblad en keur het verzoek goed. OpenNOW gaat automatisch verder.",
+      "open": "NVIDIA-inlogpagina openen",
+      "openAgain": "Inlogpagina opnieuw openen",
+      "waiting": "Wachten tot je het inlogverzoek goedkeurt...",
+      "codeLabel": "Bevestigingscode",
+      "codeHint": "Voer deze code in op de NVIDIA-pagina als daarom wordt gevraagd.",
+      "copyCode": "Code kopiëren",
+      "copied": "Gekopieerd",
+      "expiresIn": "Link verloopt over {{time}}",
+      "expired": "De inloglink is verlopen. Start opnieuw om een nieuwe link te krijgen.",
+      "manualUrl": "Of open dit adres handmatig",
+      "showQr": "QR-code tonen",
+      "hideQr": "QR-code verbergen"
+    },
+    "qr": {
+      "title": "Scan om in te loggen",
+      "description": "Scan met je telefoon en keur het inlogverzoek goed. OpenNOW gaat automatisch verder.",
+      "alt": "QR-code om in te loggen"
     },
     "accounts": {
       "activeAccount": "Actief account",

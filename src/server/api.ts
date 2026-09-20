@@ -30,18 +30,18 @@ export function registerApi(app: Express): void {
     response.json({ session: getSession(request, response).publicSession() });
   }));
 
-  app.post("/api/auth/qr/start", asyncRoute(async (request, response) => {
+  app.post("/api/auth/device/start", asyncRoute(async (request, response) => {
     const challenge = await getSession(request, response).startDeviceLogin(request.body?.providerIdpId);
     response.json(challenge);
   }));
 
-  app.post("/api/auth/qr/poll", asyncRoute(async (request, response) => {
+  app.post("/api/auth/device/poll", asyncRoute(async (request, response) => {
     const attemptId = String(request.body?.attemptId ?? "");
-    if (!attemptId) throw Object.assign(new Error("Missing QR login attempt."), { statusCode: 400 });
+    if (!attemptId) throw Object.assign(new Error("Missing sign-in attempt."), { statusCode: 400 });
     response.json(await getSession(request, response).pollDeviceLogin(attemptId));
   }));
 
-  app.post("/api/auth/qr/cancel", asyncRoute(async (request, response) => {
+  app.post("/api/auth/device/cancel", asyncRoute(async (request, response) => {
     getSession(request, response).cancelDeviceLogin(String(request.body?.attemptId ?? ""));
     response.status(204).end();
   }));

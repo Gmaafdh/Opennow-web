@@ -93,8 +93,33 @@
     },
     "actions": {
       "signIn": "로그인",
+      "signInWithLink": "링크로 로그인",
+      "cancelDeviceLogin": "로그인 취소",
       "connecting": "연결 중...",
       "restoringSession": "세션을 복원하는 중..."
+    },
+    "link": {
+      "title": "로그인 링크 열기",
+      "preparing": "로그인 준비 중",
+      "preparingDescription": "NVIDIA 로그인 링크를 요청하는 중...",
+      "description": "새 탭에서 NVIDIA 로그인 페이지를 열고 요청을 승인하세요. OpenNOW가 자동으로 계속됩니다.",
+      "open": "NVIDIA 로그인 열기",
+      "openAgain": "로그인 페이지 다시 열기",
+      "waiting": "로그인 요청 승인을 기다리는 중...",
+      "codeLabel": "확인 코드",
+      "codeHint": "NVIDIA 페이지에서 요청하면 이 코드를 입력하세요.",
+      "copyCode": "코드 복사",
+      "copied": "복사됨",
+      "expiresIn": "링크 만료까지 {{time}}",
+      "expired": "로그인 링크가 만료되었습니다. 다시 시작하여 새 링크를 받으세요.",
+      "manualUrl": "또는 이 주소를 직접 열기",
+      "showQr": "QR 코드 표시",
+      "hideQr": "QR 코드 숨기기"
+    },
+    "qr": {
+      "title": "스캔하여 로그인",
+      "description": "휴대폰으로 스캔한 뒤 로그인 요청을 승인하세요. OpenNOW가 자동으로 계속됩니다.",
+      "alt": "로그인 QR 코드"
     },
     "accounts": {
       "activeAccount": "활성 계정",

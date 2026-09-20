@@ -6,8 +6,8 @@ The client UI is the official OpenNOW renderer copied from `OpenNOW/opennow-stab
 
 ## What changed
 
-- QR-code device authorization is the only sign-in flow. There is no redirect-based NVIDIA sign-in.
-- Each visitor's profile, QR attempt, NVIDIA tokens, and owned stream IDs are stored in compressed AES-256-GCM encrypted, HTTP-only cookies. They are never returned to page JavaScript.
+- Link-based device authorization is the sign-in flow: OpenNOW shows the NVIDIA verification URL and confirmation code, the visitor approves the request in a new tab, and the server keeps polling `https://login.nvidia.com/token` until it can continue. A QR code of the same verification URL stays available behind a "Show QR code" toggle for signing in from a phone. There is no redirect-based NVIDIA sign-in.
+- Each visitor's profile, pending sign-in attempt, NVIDIA tokens, and owned stream IDs are stored in compressed AES-256-GCM encrypted, HTTP-only cookies. They are never returned to page JavaScript.
 - Session cookies are scoped to `/api`, use `SameSite=Strict`, and are marked `Secure` in production.
 - The session layer is stateless: any server instance can handle any visitor when every instance uses the same `SESSION_SECRET`.
 - Game video, audio, keyboard, mouse, and controller input use browser WebRTC.
@@ -25,6 +25,12 @@ npm run dev
 ```
 
 Open `http://localhost:3000`.
+
+To browse the dev server through a tunnel, cloud IDE, or reverse proxy, list the host names Vite should accept:
+
+```bash
+OPENNOW_DEV_ALLOWED_HOSTS=.your-tunnel.example,localhost npm run dev
+```
 
 ## Production
 
@@ -68,4 +74,4 @@ npm run test:load
 
 Set `LOAD_TEST_REQUESTS`, `LOAD_TEST_CONCURRENCY`, or `LOAD_TEST_URL` to change its scope.
 
-Full login, queue, and gameplay validation requires a real NVIDIA/GeForce NOW account. The unauthenticated provider discovery and QR-device authorization start/cancel flow can be tested without entering credentials.
+Full login, queue, and gameplay validation requires a real NVIDIA/GeForce NOW account. The unauthenticated provider discovery and the link-based device authorization start/cancel flow can be tested without entering credentials.

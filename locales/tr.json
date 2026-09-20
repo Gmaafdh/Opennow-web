@@ -93,8 +93,33 @@
     },
     "actions": {
       "signIn": "Oturum aç",
+      "signInWithLink": "Bağlantıyla oturum aç",
+      "cancelDeviceLogin": "Oturum açmayı iptal et",
       "connecting": "Bağlanıyor...",
       "restoringSession": "Oturum geri yükleniyor..."
+    },
+    "link": {
+      "title": "Oturum açma bağlantısını açın",
+      "preparing": "Oturum açma hazırlanıyor",
+      "preparingDescription": "NVIDIA oturum açma bağlantınız isteniyor...",
+      "description": "NVIDIA oturum açma sayfasını yeni bir sekmede açın ve isteği onaylayın. OpenNOW otomatik olarak devam eder.",
+      "open": "NVIDIA oturum açma sayfasını aç",
+      "openAgain": "Oturum açma sayfasını yeniden aç",
+      "waiting": "Oturum açma isteğini onaylamanız bekleniyor...",
+      "codeLabel": "Onay kodu",
+      "codeHint": "NVIDIA sayfası isterse bu kodu girin.",
+      "copyCode": "Kodu kopyala",
+      "copied": "Kopyalandı",
+      "expiresIn": "Bağlantı {{time}} içinde sona eriyor",
+      "expired": "Oturum açma bağlantısının süresi doldu. Yeni bir tane almak için yeniden başlatın.",
+      "manualUrl": "Veya bu adresi elle açın",
+      "showQr": "QR kodu göster",
+      "hideQr": "QR kodu gizle"
+    },
+    "qr": {
+      "title": "Oturum açmak için tarayın",
+      "description": "Telefonunuzla tarayın ve oturum açma isteğini onaylayın. OpenNOW otomatik olarak devam eder.",
+      "alt": "Oturum açma QR kodu"
     },
     "accounts": {
       "activeAccount": "Aktif hesap",

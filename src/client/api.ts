@@ -17,7 +17,7 @@ import {
   createUnsupportedNativeStreamerStatus,
 } from "@shared/gfn";
 import { unsupportedNativeCloudGsyncCapabilities } from "@shared/cloudGsync";
-import type { BrowserSession, QrChallenge, QrPollResult } from "./types";
+import type { BrowserSession, DeviceLoginChallengePayload, DeviceLoginPollPayload } from "./types";
 import { WEB_DEFAULT_SETTINGS } from "./webDefaults";
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -197,21 +197,21 @@ const bridge: OpenNowApi = {
   },
   getLoginProviders: () => api("/api/providers"),
   getRegions: () => api("/api/regions"),
-  login: async () => { throw new Error("OpenNOW Web uses QR-code sign in."); },
+  login: async () => { throw new Error("OpenNOW Web uses link-based sign in."); },
   startDeviceLogin: async (input) => {
-    const challenge = await api<QrChallenge>("/api/auth/qr/start", { method: "POST", body: JSON.stringify(input) });
+    const challenge = await api<DeviceLoginChallengePayload>("/api/auth/device/start", { method: "POST", body: JSON.stringify(input) });
     return { ...challenge, deviceCode: challenge.attemptId } satisfies AuthDeviceLoginChallenge;
   },
   pollDeviceLogin: async (input) => {
-    const result = await api<QrPollResult>("/api/auth/qr/poll", { method: "POST", body: JSON.stringify({ attemptId: input.attemptId }) });
+    const result = await api<DeviceLoginPollPayload>("/api/auth/device/poll", { method: "POST", body: JSON.stringify({ attemptId: input.attemptId }) });
     return { ...result, session: result.session ? toAuthSession(result.session) : undefined };
   },
   completeDeviceLogin: async () => {
     const result = await api<{ session: BrowserSession | null }>("/api/session");
-    if (!result.session) throw new Error("QR sign-in did not complete.");
+    if (!result.session) throw new Error("Sign-in did not complete.");
     return toAuthSession(result.session);
   },
-  cancelDeviceLogin: (input) => api("/api/auth/qr/cancel", { method: "POST", body: JSON.stringify(input) }),
+  cancelDeviceLogin: (input) => api("/api/auth/device/cancel", { method: "POST", body: JSON.stringify(input) }),
   logout: () => api("/api/logout", { method: "POST" }),
   logoutAll: () => api("/api/logout", { method: "POST" }),
   getSavedAccounts: async () => {

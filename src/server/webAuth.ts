@@ -189,7 +189,7 @@ export class WebAuthSession {
     if (!attempt || attempt.expiresAt <= Date.now()) {
       this.attempts.delete(attemptId);
       this.dirty = true;
-      return { status: "expired", error: "The QR code expired. Start again to get a new one." };
+      return { status: "expired", error: "The sign-in link expired. Start again to get a new one." };
     }
 
     const result = await exchangeDeviceCode(attempt.deviceCode);
@@ -250,7 +250,7 @@ export class WebAuthSession {
   }
 
   async requireAuth(): Promise<AuthSession> {
-    if (!this.auth) throw Object.assign(new Error("Sign in with the QR code first."), { statusCode: 401 });
+    if (!this.auth) throw Object.assign(new Error("Sign in to OpenNOW first."), { statusCode: 401 });
     if (isNearExpiry(this.auth.tokens.expiresAt, 10 * 60 * 1000)) {
       const refreshToken = this.auth.tokens.refreshToken;
       if (!refreshToken) {

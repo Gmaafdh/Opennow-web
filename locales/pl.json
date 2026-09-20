@@ -93,8 +93,33 @@
     },
     "actions": {
       "signIn": "Zaloguj się",
+      "signInWithLink": "Zaloguj się przez link",
+      "cancelDeviceLogin": "Anuluj logowanie",
       "connecting": "Łączenie...",
       "restoringSession": "Przywracanie sesji"
+    },
+    "link": {
+      "title": "Otwórz link logowania",
+      "preparing": "Przygotowywanie logowania",
+      "preparingDescription": "Pobieranie linku logowania NVIDIA...",
+      "description": "Otwórz stronę logowania NVIDIA w nowej karcie i zatwierdź żądanie. OpenNOW kontynuuje automatycznie.",
+      "open": "Otwórz logowanie NVIDIA",
+      "openAgain": "Otwórz ponownie stronę logowania",
+      "waiting": "Oczekiwanie na zatwierdzenie żądania logowania...",
+      "codeLabel": "Kod potwierdzający",
+      "codeHint": "Wpisz ten kod na stronie NVIDIA, jeśli zostaniesz o to poproszony.",
+      "copyCode": "Kopiuj kod",
+      "copied": "Skopiowano",
+      "expiresIn": "Link wygaśnie za {{time}}",
+      "expired": "Link logowania wygasł. Uruchom ponownie, aby uzyskać nowy.",
+      "manualUrl": "Lub otwórz ten adres ręcznie",
+      "showQr": "Pokaż kod QR",
+      "hideQr": "Ukryj kod QR"
+    },
+    "qr": {
+      "title": "Zeskanuj, aby się zalogować",
+      "description": "Zeskanuj telefonem, a następnie zatwierdź żądanie logowania. OpenNOW kontynuuje automatycznie.",
+      "alt": "Kod QR logowania"
     },
     "accounts": {
       "activeAccount": "Aktywne konto",
