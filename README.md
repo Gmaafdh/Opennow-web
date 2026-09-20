@@ -58,6 +58,19 @@ Important deployment notes:
 - Set `OPENNOW_ORIGIN` to the exact public origin so signaling WebSocket origin checks are strict.
 - Do not deploy the Vite development server publicly.
 
+## Desktop app (native, not Electron)
+
+The same client and backend also ship as a native Windows desktop app built
+with Tauri 2 (Rust shell + OS WebView2 — no bundled Chromium). The UI is the
+unmodified web client, and the shell forces GPU acceleration for
+DirectX 10-class graphics cards. See [docs/DESKTOP.md](docs/DESKTOP.md) for
+architecture, builds (CI artifacts or local), and troubleshooting.
+
+```bash
+npm run desktop:dev     # native window around the dev stack
+npm run desktop:build   # Windows installer + portable exe
+```
+
 ## Checks
 
 ```bash

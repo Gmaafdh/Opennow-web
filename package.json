@@ -19,7 +19,11 @@
     "start": "tsx src/server/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:load": "node scripts/load-test.mjs"
+    "test:load": "node scripts/load-test.mjs",
+    "desktop:prepare": "node scripts/prepare-desktop.mjs",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build",
+    "desktop:icons": "tauri icon public/opennow-logo.png"
   },
   "dependencies": {
     "@react-three/fiber": "^9.6.1",
@@ -38,6 +42,7 @@
     "ws": "^8.18.3"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
     "@types/express": "^5.0.3",
     "@types/node": "^22.18.0",
     "@types/on-headers": "^1.0.4",
@@ -46,6 +51,7 @@
     "@types/react-dom": "^19.2.0",
     "@types/three": "^0.185.0",
     "@types/ws": "^8.18.1",
+    "esbuild": "^0.25.0",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   }

@@ -1,0 +1,67 @@
+name: Desktop build (Windows)
+
+# Builds the native OpenNOW desktop app (Tauri 2 shell + bundled backend +
+# WebView2 client) into a Windows x64 NSIS installer and a portable ZIP.
+#
+# Manual run: Actions tab -> Desktop build (Windows) -> Run workflow.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+jobs:
+  windows:
+    name: Build Windows x64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      # Runs beforeBuildCommand (typecheck + vite build + desktop:prepare,
+      # which bundles the backend and stages the Node sidecar) and then
+      # compiles the Rust shell and packages the NSIS installer.
+      - name: Build OpenNOW desktop app
+        run: npx tauri build
+
+      - name: Upload NSIS installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenNOW-windows-x64-installer
+          path: src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+
+      # Portable variant: everything the app needs beside the executable.
+      # The Rust shell resolves server.mjs, dist/, and the opennow-server
+      # sidecar relative to the exe directory when they are not in a resource
+      # directory, so this layout runs without installation.
+      - name: Assemble portable build
+        shell: pwsh
+        run: |
+          $portable = "portable/OpenNOW"
+          New-Item -ItemType Directory -Force -Path $portable | Out-Null
+          Copy-Item "src-tauri/target/release/opennow.exe" "$portable/OpenNOW.exe"
+          Copy-Item "src-tauri/resources/server.mjs" $portable
+          Copy-Item "src-tauri/binaries/opennow-server-x86_64-pc-windows-msvc.exe" $portable
+          Copy-Item -Recurse "dist" "$portable/dist"
+          Compress-Archive -Path $portable -DestinationPath "portable/OpenNOW-portable-windows-x64.zip"
+
+      - name: Upload portable build
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenNOW-windows-x64-portable
+          path: portable/OpenNOW-portable-windows-x64.zip
+          if-no-files-found: error

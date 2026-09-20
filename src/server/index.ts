@@ -6,6 +6,7 @@ import { registerApi } from "./api";
 import { attachSignalingBridge } from "./signalingBridge";
 import { cacheManager } from "./services/cacheManager";
 import { cookieSessionMiddleware } from "./sessionStore";
+import { startDesktopWatchdog } from "./desktopWatchdog";
 
 const app = express();
 const server = createServer(app);
@@ -40,7 +41,9 @@ registerApi(app);
 attachSignalingBridge(server);
 
 if (process.env.NODE_ENV === "production") {
-  const staticDir = resolve("dist");
+  // OPENNOW_STATIC_DIR lets the desktop shell point at the bundled dist copy;
+  // regular deployments keep using ./dist next to the server process.
+  const staticDir = resolve(process.env.OPENNOW_STATIC_DIR ?? "dist");
   app.use(express.static(staticDir, { index: false, maxAge: "1h" }));
   app.get("/{*path}", (_request, response) => response.sendFile(resolve(staticDir, "index.html")));
 } else {
