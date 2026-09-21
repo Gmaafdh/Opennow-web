@@ -31,11 +31,18 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      # Runs beforeBuildCommand (typecheck + vite build + desktop:prepare,
-      # which bundles the backend and stages the Node sidecar) and then
-      # compiles the Rust shell and packages the NSIS installer.
+      # The same chain tauri.conf.json runs locally via beforeBuildCommand,
+      # split out here so failures pinpoint the right stage.
+      - name: Build client and backend bundle
+        run: |
+          npm run build
+          npm run desktop:prepare
+
+      # Compiles the Rust shell and packages the NSIS installer. The wrapper
+      # script republishes the output tail as the step summary and error
+      # annotations so failures are readable from the API without raw logs.
       - name: Build OpenNOW desktop app
-        run: npx tauri build
+        run: node scripts/ci-tauri-build.mjs -- -c '{"build":{"beforeBuildCommand":""}}'
 
       - name: Upload NSIS installer
         uses: actions/upload-artifact@v4
