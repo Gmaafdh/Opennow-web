@@ -47,24 +47,6 @@ jobs:
           CARGO_TERM_COLOR: never
         run: node scripts/ci-tauri-build.mjs -- --config src-tauri/tauri.ci.conf.json
 
-      # Diagnostics fallback: push the captured build log to a branch so it
-      # can be read through the regular git API even when raw Actions logs
-      # are unreachable. Never blocks the workflow result.
-      - name: Publish build log for diagnostics
-        if: failure()
-        continue-on-error: true
-        shell: bash
-        run: |
-          if [ ! -f tauri-build.log ]; then echo "no tauri-build.log captured"; exit 0; fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -B desktop-build-logs
-          mkdir -p .build-logs
-          cp tauri-build.log ".build-logs/run-${GITHUB_RUN_ID}-attempt-${GITHUB_RUN_ATTEMPT}.log"
-          git add .build-logs
-          git commit -m "desktop build log (run ${GITHUB_RUN_ID})"
-          git push origin desktop-build-logs
-
       - name: Upload NSIS installer
         uses: actions/upload-artifact@v4
         with:
