@@ -250,10 +250,10 @@ fn open_main_window(
 fn show_startup_error(app: &tauri::AppHandle, message: &str) {
     let _ = app
         .dialog()
-        .title("OpenNOW failed to start")
         .message(format!(
             "{message}\n\nDetails: server.log inside the OpenNOW app data folder."
         ))
+        .title("OpenNOW failed to start")
         .kind(tauri_plugin_dialog::MessageDialogKind::Error)
         .blocking_show();
 }
