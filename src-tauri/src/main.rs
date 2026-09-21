@@ -276,7 +276,7 @@ fn backend_exited(app: &tauri::AppHandle) -> bool {
         .and_then(|state| {
             let mut guard = state.child.lock().ok()?;
             let child = guard.as_mut()?;
-            matches!(child.try_wait(), Ok(Some(_)))
+            Some(matches!(child.try_wait(), Ok(Some(_))))
         })
         .unwrap_or(false)
 }
