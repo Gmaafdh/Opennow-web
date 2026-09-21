@@ -8,16 +8,23 @@
  * Usage: node scripts/ci-tauri-build.mjs [-- <tauri build args>...]
  */
 import { spawnSync } from "node:child_process";
-import { appendFileSync } from "node:fs";
+import { appendFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
 
 const passthroughIndex = process.argv.indexOf("--");
 const tauriArgs = passthroughIndex === -1 ? [] : process.argv.slice(passthroughIndex + 1);
 
-const result = spawnSync("npx", ["tauri", "build", ...tauriArgs], {
+// Invoke the CLI through node directly (no npx, no shell) so arguments with
+// quotes or braces survive verbatim on every platform.
+const cliEntry = join("node_modules", "@tauri-apps", "cli", "tauri.js");
+const command = existsSync(cliEntry)
+  ? { file: process.execPath, args: [cliEntry, "build", ...tauriArgs] }
+  : { file: "npx", args: ["tauri", "build", ...tauriArgs] };
+
+const result = spawnSync(command.file, command.args, {
   stdio: ["ignore", "pipe", "pipe"],
   encoding: "utf8",
-  // npx is npx.cmd on Windows and needs a shell there.
-  shell: process.platform === "win32",
+  shell: false,
   maxBuffer: 64 * 1024 * 1024,
 });
 

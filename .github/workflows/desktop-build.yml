@@ -42,7 +42,7 @@ jobs:
       # script republishes the output tail as the step summary and error
       # annotations so failures are readable from the API without raw logs.
       - name: Build OpenNOW desktop app
-        run: node scripts/ci-tauri-build.mjs -- -c '{"build":{"beforeBuildCommand":""}}'
+        run: node scripts/ci-tauri-build.mjs -- --config src-tauri/tauri.ci.conf.json
 
       - name: Upload NSIS installer
         uses: actions/upload-artifact@v4
